@@ -1,0 +1,6 @@
+{
+  "name": "ROYAL HILLS FEST 2026",
+  "description": "Official portal for ROYAL HILLS FEST 2026. 14 November 2026 at Royal Hills Golf Resort and Spa Nakhon Nayok. Registration, digital fest pass, check-in, and event management.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
