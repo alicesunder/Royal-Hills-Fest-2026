@@ -1059,7 +1059,7 @@ export const ScheduleTimeline: React.FC = () => {
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div
           ref={bgRef}
-          className="absolute inset-x-0 -top-24 -bottom-24 bg-cover bg-center will-change-transform"
+          className="absolute inset-x-0 -top-24 -bottom-24 bg-cover bg-center will-change-transform rh-schedule-backdrop"
           style={{ backgroundImage: `url(${courseBg})`, transform: 'scale(1.12)' }}
         />
       </div>
@@ -1091,7 +1091,7 @@ export const ScheduleTimeline: React.FC = () => {
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28 pb-20">
         {/* ===== HEADER ===== */}
-        <div className="text-center max-w-3xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto rh-schedule-heading">
           <p className="font-display text-[11px] sm:text-xs tracking-[0.45em] text-[#E7B93F] uppercase">Golf · Music · Good Times</p>
           <h2 className="rh-title font-display text-4xl sm:text-6xl lg:text-7xl font-bold leading-[1.2] mt-3 pb-1">กำหนดการจัดงาน</h2>
 
@@ -1153,7 +1153,7 @@ export const ScheduleTimeline: React.FC = () => {
         {/* ============================================================
             DESKTOP COURSE MAP
         ============================================================ */}
-        <div ref={deskRef} className="hidden lg:block relative mt-10" style={{ height: MAP_H }}>
+        <div ref={deskRef} className="hidden lg:block relative mt-10 rh-schedule-map" style={{ height: MAP_H }}>
           <svg className="absolute inset-0 pointer-events-none" width={W} height={MAP_H} viewBox={`0 0 ${W} ${MAP_H}`} fill="none">
             <defs>
               <linearGradient id="rhRouteGold" x1="0" y1="0" x2="0" y2="1">
@@ -1255,7 +1255,7 @@ export const ScheduleTimeline: React.FC = () => {
         {/* ============================================================
             MOBILE / TABLET
         ============================================================ */}
-        <div ref={mobRef} className="lg:hidden relative mt-10">
+        <div ref={mobRef} className="lg:hidden relative mt-10 rh-schedule-mobile">
           {/* unlit rail + lit rail */}
           <div className="absolute left-[32.5px] top-6 bottom-44 w-[3px] rounded-full bg-[#F0C75A]/20" />
           <div

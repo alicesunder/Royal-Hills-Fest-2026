@@ -16,7 +16,7 @@ import { CheckInScanner } from './components/CheckInScanner';
 import { AdminTicketDashboard } from './components/AdminTicketDashboard';
 import { ticketStoreService } from './services/ticketStoreService';
 import { ArrowRight, Ticket, CheckCircle2 } from 'lucide-react';
-import { AutoReveal, ScrollRail, Atmosphere } from './components/fx';
+import { AutoReveal, ScrollRail, Atmosphere, MotionDirector } from './components/fx';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('home');
@@ -136,6 +136,7 @@ export default function App() {
         ) : (
           /* VIEW 5: MAIN FESTIVAL HOMEPAGE */
           <div>
+            <MotionDirector />
             <AutoReveal />
             <ScrollRail />
             {/* 1. Hero */}
@@ -174,7 +175,7 @@ export default function App() {
             </div>
 
             {/* 6. Mid-Page Callout Banner */}
-            <section className="isolate py-20 bg-gradient-to-b from-[#10140F] via-[#182719] to-[#10140F] relative border-y border-[#30391E]/50 overflow-hidden">
+            <section className="isolate py-20 bg-gradient-to-b from-[#10140F] via-[#182719] to-[#10140F] relative border-y border-[#30391E]/50 overflow-hidden rh-mid-cta">
               <Atmosphere embers={16} mist rise={420} />
               <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center relative z-10">
                 <span className="text-xs font-semibold tracking-[0.25em] uppercase text-[#D8A934] block mb-3">
@@ -218,7 +219,7 @@ export default function App() {
             <FAQSection />
 
             {/* 9. Final CTA */}
-            <section className="py-24 bg-[#10140F] relative text-center border-t border-[#30391E]/30">
+            <section className="py-24 bg-[#10140F] relative text-center border-t border-[#30391E]/30 rh-final-cta">
               <div className="max-w-3xl mx-auto px-4">
                 <p className="text-xs font-semibold uppercase tracking-widest text-[#65705A] mb-3">
                   ROYAL HILLS GOLF RESORT AND SPA NAKHON NAYOK

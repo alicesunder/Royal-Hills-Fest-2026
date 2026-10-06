@@ -245,6 +245,218 @@ export const AutoReveal: React.FC = () => {
   return null;
 };
 
+
+
+/* ---------------- cinematic motion director ----------------
+   Global interaction layer: loading reveal, pointer light, custom cursor,
+   scroll velocity, and scene activation. All effects are progressively
+   enhanced and respect prefers-reduced-motion.
+--------------------------------------------------------------- */
+export const MotionDirector: React.FC = () => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const root = document.documentElement;
+    const body = document.body;
+    const reduce = reduced();
+    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    root.classList.add('rh-motion-ready');
+    if (reduce) root.classList.add('rh-reduced-motion');
+    if (coarse) root.classList.add('rh-touch');
+
+    const intro = document.createElement('div');
+    intro.className = 'rh-page-intro';
+    intro.innerHTML = `
+      <div class="rh-page-intro-glow"></div>
+      <div class="rh-page-intro-inner">
+        <span class="rh-page-intro-kicker">ROYAL HILLS FEST 2026</span>
+        <span class="rh-page-intro-line"></span>
+        <strong>ONE DAY. ONE PLACE.</strong>
+        <small>GOLF · MUSIC · GOOD TIMES</small>
+      </div>
+    `;
+    body.appendChild(intro);
+
+    let introTimer = window.setTimeout(() => intro.classList.add('is-hidden'), reduce ? 180 : 1100);
+    let removeTimer = window.setTimeout(() => intro.remove(), reduce ? 700 : 1900);
+
+    let cursor = null as HTMLDivElement | null;
+    let cursorDot = null as HTMLDivElement | null;
+    let cursorGlow = null as HTMLDivElement | null;
+    let raf = 0;
+    let cx = window.innerWidth / 2;
+    let cy = window.innerHeight / 2;
+    let tx = cx;
+    let ty = cy;
+
+    if (!coarse && !reduce) {
+      cursor = document.createElement('div');
+      cursor.className = 'rh-cursor';
+      cursorDot = document.createElement('div');
+      cursorDot.className = 'rh-cursor-dot';
+      cursorGlow = document.createElement('div');
+      cursorGlow.className = 'rh-pointer-glow';
+      body.append(cursor, cursorDot, cursorGlow);
+
+      const tick = () => {
+        cx += (tx - cx) * 0.18;
+        cy += (ty - cy) * 0.18;
+        cursor?.style.setProperty('transform', `translate3d(${cx}px,${cy}px,0)`);
+        cursorDot?.style.setProperty('transform', `translate3d(${tx}px,${ty}px,0)`);
+        cursorGlow?.style.setProperty('transform', `translate3d(${tx}px,${ty}px,0)`);
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+
+      const onMove = (e: MouseEvent) => {
+        tx = e.clientX;
+        ty = e.clientY;
+        root.style.setProperty('--mouse-x', `${e.clientX}px`);
+        root.style.setProperty('--mouse-y', `${e.clientY}px`);
+        const target = e.target as HTMLElement | null;
+        const interactive = target?.closest('button,a,[data-cursor="interactive"]');
+        const artist = target?.closest('.artist-festival-figure,.artist-festival-card');
+        cursor?.classList.toggle('is-hover', Boolean(interactive));
+        cursor?.classList.toggle('is-artist', Boolean(artist));
+        cursorDot?.classList.toggle('is-hover', Boolean(interactive));
+        cursorGlow?.classList.toggle('is-artist', Boolean(artist));
+      };
+      const onLeave = () => {
+        root.classList.add('rh-pointer-away');
+      };
+      const onEnter = () => {
+        root.classList.remove('rh-pointer-away');
+      };
+      window.addEventListener('mousemove', onMove, { passive: true });
+      document.documentElement.addEventListener('mouseleave', onLeave);
+      document.documentElement.addEventListener('mouseenter', onEnter);
+
+      (MotionDirector as any)._cleanupPointer = () => {
+        window.removeEventListener('mousemove', onMove);
+        document.documentElement.removeEventListener('mouseleave', onLeave);
+        document.documentElement.removeEventListener('mouseenter', onEnter);
+      };
+    }
+
+    let lastY = window.scrollY;
+    let lastT = performance.now();
+    let scrollRaf = 0;
+    let progressRaf = 0;
+    const scenes = Array.from(document.querySelectorAll<HTMLElement>('main section, #tickets-preview > section'));
+
+    const updateSceneProgress = () => {
+      progressRaf = 0;
+      const vh = window.innerHeight || 1;
+      scenes.forEach((scene) => {
+        const rect = scene.getBoundingClientRect();
+        const span = Math.max(1, vh + rect.height);
+        // 0 = just entering from the bottom, 1 = almost fully past the top.
+        const progress = clamp((vh - rect.top) / span, 0, 1);
+        scene.style.setProperty('--scene-progress', progress.toFixed(4));
+        scene.style.setProperty('--scene-shift', `${((progress - 0.5) * -2).toFixed(4)}`);
+      });
+    };
+
+    const requestSceneProgress = () => {
+      if (progressRaf) return;
+      progressRaf = requestAnimationFrame(updateSceneProgress);
+    };
+
+    const onScroll = () => {
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        const now = performance.now();
+        const dy = window.scrollY - lastY;
+        const dt = Math.max(16, now - lastT);
+        const velocity = clamp(Math.abs(dy / dt) * 18, 0, 1);
+        root.style.setProperty('--scroll-y', `${window.scrollY}px`);
+        root.style.setProperty('--scroll-velocity', velocity.toFixed(3));
+        root.classList.toggle('rh-scrolling-fast', velocity > 0.48);
+        root.classList.toggle('rh-scrolling-down', dy > 2);
+        root.classList.toggle('rh-scrolling-up', dy < -2);
+        if (window.scrollY > 90 && dy > 2) root.classList.add('rh-nav-condensed');
+        if (dy < -2 || window.scrollY < 40) root.classList.remove('rh-nav-condensed');
+        lastY = window.scrollY;
+        lastT = now;
+        requestSceneProgress();
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', requestSceneProgress, { passive: true });
+
+    const magneticTargets = Array.from(document.querySelectorAll<HTMLElement>('.luxury-btn, .hero-cinematic button, .rh-mid-cta button, .rh-final-cta button, .artist-festival-card'))
+      .filter((el) => !el.closest('[data-no-magnetic]'));
+    const magneticCleanup: Array<() => void> = [];
+    if (!coarse && !reduce) {
+      magneticTargets.forEach((el) => {
+        el.dataset.magnetic = 'true';
+        const move = (e: MouseEvent) => {
+          const r = el.getBoundingClientRect();
+          const dx = ((e.clientX - (r.left + r.width / 2)) / Math.max(1, r.width / 2)) * 5;
+          const dy = ((e.clientY - (r.top + r.height / 2)) / Math.max(1, r.height / 2)) * 5;
+          el.style.setProperty('--mx', `${dx.toFixed(2)}px`);
+          el.style.setProperty('--my', `${dy.toFixed(2)}px`);
+        };
+        const leave = () => {
+          el.style.setProperty('--mx', '0px');
+          el.style.setProperty('--my', '0px');
+        };
+        el.addEventListener('mousemove', move, { passive: true });
+        el.addEventListener('mouseleave', leave, { passive: true });
+        magneticCleanup.push(() => {
+          el.removeEventListener('mousemove', move);
+          el.removeEventListener('mouseleave', leave);
+          delete el.dataset.magnetic;
+          el.style.removeProperty('--mx');
+          el.style.removeProperty('--my');
+        });
+      });
+    }
+
+    onScroll();
+    updateSceneProgress();
+
+    const io = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const el = entry.target as HTMLElement;
+        el.classList.toggle('rh-scene-active', entry.isIntersecting);
+        if (entry.isIntersecting && entry.intersectionRatio > 0.14) {
+          el.classList.add('rh-scene-seen');
+        }
+      });
+    }, { threshold: [0.14, 0.35, 0.7], rootMargin: '-10% 0px -12% 0px' }) : null;
+    scenes.forEach((scene) => io?.observe(scene));
+
+    const onReady = () => root.classList.add('rh-loaded');
+    if (document.readyState === 'complete') onReady();
+    else window.addEventListener('load', onReady, { once: true });
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', requestSceneProgress);
+      cancelAnimationFrame(scrollRaf);
+      cancelAnimationFrame(progressRaf);
+      cancelAnimationFrame(raf);
+      io?.disconnect();
+      window.clearTimeout(introTimer);
+      window.clearTimeout(removeTimer);
+      intro.remove();
+      (MotionDirector as any)._cleanupPointer?.();
+      cursor?.remove();
+      cursorDot?.remove();
+      cursorGlow?.remove();
+      magneticCleanup.forEach((fn) => fn());
+      root.classList.remove('rh-motion-ready', 'rh-loaded', 'rh-touch', 'rh-reduced-motion', 'rh-scrolling-fast', 'rh-scrolling-down', 'rh-scrolling-up', 'rh-nav-condensed');
+      root.style.removeProperty('--scroll-y');
+      root.style.removeProperty('--scroll-velocity');
+      root.style.removeProperty('--mouse-x');
+      root.style.removeProperty('--mouse-y');
+    };
+  }, []);
+  return null;
+};
+
 /* ---------------- progress bar (navbar) ---------------- */
 export const ScrollProgressBar: React.FC = () => {
   const ref = useRef<HTMLDivElement>(null);

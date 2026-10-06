@@ -78,7 +78,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
   return (
     <section
       onMouseMove={handleMouseMove}
-      className="hero-cinematic relative min-h-[100svh] flex flex-col justify-between items-center text-center px-4 sm:px-6 pt-24 sm:pt-28 pb-10 overflow-hidden bg-[#0c100b]"
+      className="hero-cinematic relative min-h-[100svh] flex flex-col justify-between items-center text-center px-4 sm:px-6 pt-24 sm:pt-28 pb-10 overflow-hidden bg-[#0c100b]" data-motion-scene="hero"
     >
       {/* ========================================================
           BACKGROUND: CINEMATIC MULTI-LAYER MOUNTAIN & GOLF VISUAL
@@ -157,7 +157,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
       {/* ========================================================
           TOP BRANDING ROW: EVENT BADGES & VERIFIED DESTINATION
           ======================================================== */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between gap-4">
+      <div className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between gap-4 hero-motion-top">
         {/* Left Badge: Certified Luxury Event */}
         <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#182719]/80 border border-[#D8A934]/40 backdrop-blur-md shadow-xl text-left">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#FFF9ED] to-[#D8A934] text-[#10140F]">
@@ -190,7 +190,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
       {/* ========================================================
           HERO CORE: EDITORIAL HEADLINE & GOLD TYPOGRAPHY
           ======================================================== */}
-      <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center my-auto py-6 sm:py-8">
+      <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center my-auto py-6 sm:py-8 hero-motion-core">
         {/* Subtle decorative gold line & kicker */}
         <div className="flex items-center gap-3 mb-4 sm:mb-5">
           <span className="h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-[#D8A934]" />

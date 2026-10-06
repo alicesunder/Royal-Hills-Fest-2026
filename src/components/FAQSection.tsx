@@ -23,7 +23,7 @@ export const FAQSection: React.FC = () => {
       <div className="faq-orbit absolute left-1/2 top-0 -translate-x-1/2 pointer-events-none" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-[0.85fr_1.45fr] gap-12 lg:gap-20 items-start">
-          <div className="lg:sticky lg:top-28">
+          <div className="lg:sticky lg:top-28 faq-scene-heading">
             <div className="flex items-center gap-4 mb-4"><span className="section-index">04</span><p className="eyebrow">GOOD TO KNOW</p></div>
             <h2 className="font-display text-4xl sm:text-6xl font-bold text-[#FFF9ED] leading-[0.95]">QUESTIONS.<br /><span className="text-[#D8A934]">ANSWERED.</span></h2>
             <p className="text-sm sm:text-base text-[#F3E7C8]/65 leading-relaxed mt-6 max-w-md">ทุกข้อมูลสำคัญที่ช่วยให้คุณเตรียมตัวได้ง่ายขึ้น ตั้งแต่การสมัคร บัตรดิจิทัล เช็กอิน กอล์ฟ ไปจนถึงที่พัก</p>
@@ -41,7 +41,7 @@ export const FAQSection: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 faq-scene-list">
             {FAQS.map((faq, index) => {
               const isOpen = openId === faq.id;
               return (

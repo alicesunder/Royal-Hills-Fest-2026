@@ -18,7 +18,7 @@ export const LocationSection: React.FC = () => {
         <div className="location-contour contour-b" />
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-12 sm:mb-16">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-12 sm:mb-16 location-heading">
           <div>
             <div className="flex items-center gap-4 mb-4"><span className="section-index">03</span><p className="eyebrow">THE DESTINATION</p></div>
             <h2 className="font-display text-4xl sm:text-6xl font-bold text-[#FFF9ED] leading-[0.95]">ARRIVE AT<br /><span className="text-[#D8A934]">ROYAL HILLS.</span></h2>
@@ -26,8 +26,8 @@ export const LocationSection: React.FC = () => {
           <p className="max-w-md text-sm sm:text-base text-[#F3E7C8]/72 leading-relaxed">สถานที่ที่ทำให้คำว่า “ออกไปพัก” มีภาพชัดเจนขึ้น — ขุนเขา สนามกอล์ฟ ป่าสน และรีสอร์ทในพื้นที่เดียวกัน</p>
         </div>
 
-        <div className="relative rounded-[30px] overflow-hidden border border-white/10 shadow-2xl">
-          <div className="relative h-[420px] sm:h-[540px]">
+        <div className="relative rounded-[30px] overflow-hidden border border-white/10 shadow-2xl location-scene-card">
+          <div className="relative h-[420px] sm:h-[540px] location-hero-media">
             <img src={venueImg} alt="Royal Hills Golf Resort and Spa" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#10140F] via-[#10140F]/35 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-[#10140F]/70 via-transparent to-[#10140F]/30" />

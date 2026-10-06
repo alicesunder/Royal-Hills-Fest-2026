@@ -20,7 +20,7 @@ export const AboutSection: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-7 about-copy-scene">
             <div className="flex items-start gap-4 mb-8">
               <span className="section-index">01</span>
               <div>
@@ -51,7 +51,7 @@ export const AboutSection: React.FC = () => {
               ))}
             </div>
 
-            <div className="mt-10 grid sm:grid-cols-2 gap-4">
+            <div className="mt-10 grid sm:grid-cols-2 gap-4 about-pillars">
               {PILLARS.map(({ icon: Icon, no, title, body, accent }) => (
                 <div key={title} className="pillar-card group">
                   <div className="flex items-start gap-4">
@@ -70,9 +70,9 @@ export const AboutSection: React.FC = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-5 lg:pt-12">
+          <div className="lg:col-span-5 lg:pt-12 about-visual-scene">
             <div className="about-photo-stack relative">
-              <div className="relative rounded-[28px] overflow-hidden border border-white/10 shadow-2xl aspect-[0.82] group">
+              <div className="relative rounded-[28px] overflow-hidden border border-white/10 shadow-2xl aspect-[0.82] group about-hero-photo">
                 <img src={venueImg} alt="รอยัลฮิลส์ กอล์ฟ รีสอร์ท แอนด์ สปา" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#10140F]/95 via-[#10140F]/20 to-transparent" />
                 <div className="absolute top-5 left-5 px-3 py-1.5 rounded-full bg-[#10140F]/55 backdrop-blur-md border border-white/10 text-[9px] tracking-[0.23em] text-[#FFF9ED]/85">SARIKA · NAKHON NAYOK</div>
