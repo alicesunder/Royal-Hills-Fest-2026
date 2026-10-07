@@ -40,12 +40,13 @@ const ARTISTS: Artist[] = [
 
 export const ExperienceSection: React.FC = () => {
   const [active, setActive] = useState('artist-01');
+  const [artistInteracting, setArtistInteracting] = useState(false);
   const activeArtist = useMemo(() => ARTISTS.find((artist) => artist.id === active) ?? ARTISTS[0], [active]);
 
   return (
     <section
       id="experience"
-      className={`artist-festival-section relative isolate overflow-hidden active-${active}`}
+      className={`artist-festival-section relative isolate overflow-hidden active-${active} ${artistInteracting ? 'artist-interacting' : ''}`}
       data-motion-scene="artists"
     >
       <div className="artist-festival-backdrop" aria-hidden="true">
@@ -101,7 +102,13 @@ export const ExperienceSection: React.FC = () => {
           </div>
         </header>
 
-        <div className="artist-festival-stage rh-motion-block">
+        <div
+          className="artist-festival-stage rh-motion-block"
+          onMouseEnter={() => setArtistInteracting(true)}
+          onMouseLeave={() => setArtistInteracting(false)}
+          onFocus={() => setArtistInteracting(true)}
+          onBlur={() => setArtistInteracting(false)}
+        >
           <div className="artist-festival-stage-light" aria-hidden="true" />
           <div className="artist-festival-stage-light-secondary" aria-hidden="true" />
           <div className="artist-festival-stage-floor" aria-hidden="true" />
@@ -142,8 +149,8 @@ export const ExperienceSection: React.FC = () => {
                 key={artist.id}
                 type="button"
                 className={`artist-festival-card ${isActive ? 'is-active' : ''}`}
-                onMouseEnter={() => setActive(artist.id)}
-                onFocus={() => setActive(artist.id)}
+                onMouseEnter={() => { setActive(artist.id); setArtistInteracting(true); }}
+                onFocus={() => { setActive(artist.id); setArtistInteracting(true); }}
                 onClick={() => setActive(artist.id)}
                 data-cursor="artist"
               >

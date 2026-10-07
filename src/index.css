@@ -1041,6 +1041,30 @@ html{scroll-behavior:smooth}
 
 @keyframes artist-now-pulse{0%{box-shadow:0 0 0 0 rgba(239,198,90,.38)}70%{box-shadow:0 0 0 7px rgba(239,198,90,0)}100%{box-shadow:0 0 0 0 rgba(239,198,90,0)}}
 
+
+/* V14 — Artist interaction override: prevent scene-level scroll dimming while choosing an artist. */
+#experience.artist-interacting .rh-motion-block{
+  opacity:1 !important;
+  filter:none !important;
+}
+#experience.artist-interacting .artist-festival-figure:not(.is-active){
+  opacity:.82 !important;
+  filter:saturate(.92) brightness(.84) contrast(1.02) !important;
+}
+#experience.artist-interacting .artist-festival-figure.is-active{
+  opacity:1 !important;
+  filter:saturate(1.1) brightness(1.08) contrast(1.04) !important;
+}
+#experience.artist-interacting .artist-festival-figure.is-active img{
+  filter:drop-shadow(0 34px 28px rgba(0,0,0,.72)) drop-shadow(0 0 34px rgba(242,199,85,.18)) !important;
+}
+@media (max-width:640px){
+  #experience.artist-interacting .artist-festival-figure:not(.is-active){
+    opacity:.84 !important;
+    filter:saturate(.94) brightness(.86) contrast(1.01) !important;
+  }
+}
+
 /* ----- HERO: title as a cinematic lockup, not a single fade ----- */
 .rh-motion-ready .hero-title-lockup h1 > span,
 .rh-motion-ready .hero-title-lockup h1 > div{
@@ -1273,4 +1297,287 @@ html{scroll-behavior:smooth}
 }
 @media (prefers-reduced-motion: reduce){
   .ticket-showcase-section *, .ticket-showcase-section *::before, .ticket-showcase-section *::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
+}
+
+/* =============================================================
+   V15 — MOBILE EXPERIENCE OVERHAUL
+   Full-site mobile composition: spacing, typography, touch targets,
+   cinematic sections, ticket flows, overlays and safe-area handling.
+============================================================= */
+
+@media (max-width: 767px){
+  :root{
+    --mobile-gutter:14px;
+    --mobile-section-y:64px;
+    --mobile-topbar:66px;
+  }
+
+  html{scroll-padding-top:var(--mobile-topbar);}
+  body{font-size:14px;overflow-x:hidden;overscroll-behavior-x:none;}
+  main, section, article, header, footer, div{min-width:0;}
+  section[id]{scroll-margin-top:var(--mobile-topbar);}
+  img,video{display:block;max-width:100%;}
+  button,a{ -webkit-tap-highlight-color: transparent; }
+  button{min-height:44px;}
+
+  /* ===== Navbar ===== */
+  .site-navbar{
+    padding-top:calc(env(safe-area-inset-top, 0px) + .55rem) !important;
+    padding-bottom:.55rem !important;
+  }
+  .site-navbar > div:first-child{padding-left:.75rem !important;padding-right:.75rem !important;gap:.45rem;}
+  .site-navbar > div:first-child > button:first-child{min-width:0;max-width:52vw;overflow:hidden;}
+  .site-navbar > div:first-child > button:first-child span{
+    display:block;font-size:10px !important;letter-spacing:.12em !important;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .site-navbar .bg-\[\#D8A934\]{
+    padding:.58rem .72rem !important;border-radius:999px !important;font-size:9px !important;letter-spacing:.08em !important;
+    box-shadow:0 7px 22px rgba(216,169,52,.18) !important;
+  }
+  .site-navbar .bg-\[\#D8A934\] svg{width:13px;height:13px;}
+  .site-navbar .lg\:hidden.p-2{padding:.52rem !important;}
+  .site-navbar .lg\:hidden.p-2 svg{width:20px;height:20px;}
+  .site-navbar > div:last-child{
+    max-height:calc(100svh - var(--mobile-topbar));overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+
+  /* ===== Hero ===== */
+  .hero-cinematic{
+    min-height:100svh !important;
+    padding:calc(env(safe-area-inset-top,0px) + 78px) 12px 22px !important;
+  }
+  .hero-motion-top{gap:.55rem !important;align-items:flex-start !important;}
+  .hero-motion-top > div:first-child{
+    max-width:72%;padding:.55rem .72rem !important;border-radius:16px !important;
+  }
+  .hero-motion-top > div:first-child span:first-child{width:20px !important;height:20px !important;}
+  .hero-motion-top > div:first-child span:first-child svg{width:11px;height:11px;}
+  .hero-motion-top > div:first-child p:first-child{font-size:7px !important;letter-spacing:.18em !important;}
+  .hero-motion-top > div:first-child p:last-child{font-size:8px !important;line-height:1.25;}
+  .hero-motion-core{width:100%;padding:8px 0 14px !important;}
+  .hero-motion-core > div:first-child{margin-bottom:.85rem !important;}
+  .hero-motion-core > div:first-child p{font-size:8px !important;letter-spacing:.21em !important;}
+  .hero-motion-core > div:first-child span{width:22px !important;}
+  .hero-motion-core h1 > span:first-child{font-size:clamp(2.9rem,15vw,4.4rem) !important;line-height:.9 !important;letter-spacing:-.045em !important;}
+  .hero-motion-core h1 > div span:first-child{font-size:clamp(2.25rem,12vw,3.5rem) !important;}
+  .hero-motion-core h1 > div span:last-child{font-size:clamp(1.65rem,9vw,2.7rem) !important;letter-spacing:.1em !important;}
+  .hero-motion-core .font-editorial{font-size:1.02rem !important;line-height:1.45 !important;}
+  .hero-motion-core .font-editorial span{font-size:.84rem !important;line-height:1.45 !important;}
+  .hero-motion-core .rounded-full{max-width:100%;font-size:9px !important;padding:.55rem .75rem !important;line-height:1.35;}
+  .hero-motion-core .rounded-full span{min-width:0;}
+  .hero-motion-core .rounded-full span:last-child{display:none;}
+  .hero-motion-core .mt-8,
+  .hero-motion-core .mt-10{margin-top:1rem !important;}
+  .hero-motion-core .mt-6.flex{gap:.55rem !important;}
+  .hero-motion-core .mt-6.flex > span{font-size:9px !important;}
+  .hero-motion-core .mt-6.flex > span:nth-child(2),
+  .hero-motion-core .mt-6.flex > span:nth-child(4){display:none;}
+  .hero-motion-core button{width:100%;min-height:48px !important;padding:.75rem 1rem !important;}
+  .hero-cinematic > .relative.z-10:last-child{padding-top:.4rem;font-size:8px !important;}
+  .hero-cinematic .hero-vertical-word{display:none;}
+  .hero-cinematic .hero-grid{opacity:.07;background-size:44px 44px;}
+  .hero-cinematic .hero-sun{width:115vw;height:115vw;filter:blur(90px);}
+  .hero-cinematic .hero-scan{opacity:.18 !important;}
+
+  /* ===== Shared section rhythm ===== */
+  .section-editorial{padding:var(--mobile-section-y) var(--mobile-gutter) !important;}
+  .section-editorial > .max-w-7xl,
+  #experience > .relative.z-10,
+  #location > .max-w-6xl,
+  #faq > .max-w-6xl,
+  #tickets-preview > section > .max-w-6xl{
+    max-width:none !important;padding-left:0 !important;padding-right:0 !important;
+  }
+  .section-index{width:30px;height:30px;font-size:8px;}
+  .eyebrow{font-size:8px;letter-spacing:.24em;}
+
+  /* ===== About ===== */
+  #about .grid{display:flex !important;flex-direction:column !important;gap:2.2rem !important;}
+  #about .about-copy-scene{width:100%;}
+  #about .about-visual-scene{width:100%;padding-top:0 !important;order:2;}
+  #about .about-copy-scene > .flex{margin-bottom:1.25rem !important;gap:.7rem !important;}
+  #about .about-copy-scene h2{font-size:clamp(2.5rem,12vw,3.7rem) !important;line-height:.95 !important;}
+  #about .about-copy-scene > .font-editorial{font-size:1.02rem !important;line-height:1.6 !important;}
+  #about .about-copy-scene > .mt-10.grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;margin-top:1.5rem !important;}
+  #about .about-copy-scene > .mt-10.grid > div{padding:.85rem .7rem !important;}
+  #about .about-copy-scene > .mt-10.grid > div p:first-child{font-size:2rem !important;}
+  #about .about-pillars{grid-template-columns:1fr !important;gap:.7rem !important;margin-top:1.4rem !important;}
+  #about .pillar-card{padding:.9rem !important;border-radius:15px !important;}
+  #about .about-photo-stack{padding:0 !important;}
+  #about .about-photo-stack::before{inset:10px -8px -8px 8px;border-radius:20px;}
+  #about .about-hero-photo{aspect-ratio:1 / 1.08 !important;border-radius:22px !important;}
+  #about .about-hero-photo .absolute.bottom-6{bottom:1rem;left:1rem;right:1rem;}
+  #about .about-hero-photo .font-display{font-size:1.8rem !important;}
+  #about .about-photo-float{display:none !important;}
+  #about .about-copy-scene + div{margin-top:1rem !important;padding-top:1rem !important;font-size:8px !important;}
+
+  /* ===== Artist Experience ===== */
+  #experience .relative.z-10{padding:3.6rem var(--mobile-gutter) 3.4rem !important;}
+  #experience .artist-festival-header{gap:.9rem !important;}
+  #experience .artist-festival-title{font-size:clamp(2.65rem,13.5vw,4.15rem) !important;line-height:.83 !important;}
+  #experience .artist-festival-now-playing{min-width:0 !important;width:max-content;max-width:100%;margin-top:.45rem;padding:.42rem .55rem !important;}
+  #experience .artist-festival-now-playing strong{font-size:.8rem !important;}
+  #experience .artist-festival-copy{font-size:.72rem !important;}
+  #experience .artist-festival-stage{height:286px !important;margin:.15rem -.35rem 0 !important;}
+  #experience .artist-festival-stage-caption{top:2%;}
+  #experience .artist-festival-figures{inset:3% -8% 0 !important;}
+  #experience .artist-festival-figure{width:37% !important;}
+  #experience .artist-festival-figure.artist-thai{width:43% !important;}
+  #experience .artist-festival-figure.artist-punch{margin-right:-10% !important;}
+  #experience .artist-festival-figure.artist-shama{margin-left:-10% !important;}
+  #experience .artist-festival-figure.artist-punch img{height:78% !important;}
+  #experience .artist-festival-figure.artist-thai img{height:90% !important;}
+  #experience .artist-festival-figure.artist-shama img{height:82% !important;}
+  #experience .artist-festival-stage-light{width:70vw !important;top:22% !important;}
+  #experience .artist-festival-cards{margin-top:-8px !important;padding-bottom:.4rem !important;gap:.55rem !important;}
+  #experience .artist-festival-card{flex-basis:86vw !important;min-height:150px !important;}
+  #experience .artist-festival-card-content{min-height:128px !important;}
+  #experience .artist-festival-card-description{font-size:7px !important;display:block !important;max-height:34px !important;opacity:.7 !important;margin-top:.3rem !important;}
+  #experience .artist-festival-meta-bar{margin-top:.15rem !important;}
+  #experience .artist-festival-meta-cta{width:100% !important;margin-top:.3rem !important;}
+
+  /* ===== Schedule ===== */
+  #schedule > .relative.z-10{padding:4.5rem var(--mobile-gutter) 4rem !important;}
+  #schedule .rh-schedule-heading h2{font-size:clamp(2.5rem,12.5vw,3.65rem) !important;line-height:1.05 !important;}
+  #schedule .rh-schedule-heading p{line-height:1.5 !important;}
+  #schedule .rh-schedule-heading .inline-flex{max-width:100%;padding:.55rem .85rem !important;font-size:9px !important;}
+  #schedule .mt-8.sm\:mt-10{margin-top:1.25rem !important;}
+  #schedule .rh-schedule-mobile{margin-top:1.4rem !important;}
+  #schedule .rh-schedule-mobile > .space-y-12{gap:2.1rem !important;}
+  #schedule .rh-schedule-mobile .rh-card{padding:.65rem !important;border-radius:14px !important;}
+  #schedule .rh-schedule-mobile .rh-card > div.flex{gap:.65rem !important;}
+  #schedule .rh-schedule-mobile .rh-card > div.flex > div:first-child{width:82px !important;height:62px !important;}
+  #schedule .rh-schedule-mobile .rh-card h3{font-size:.86rem !important;}
+  #schedule .rh-schedule-mobile .rh-card .text-\[11px\]{font-size:9px !important;}
+  #schedule .rh-schedule-mobile .rh-card .w-7{width:26px !important;height:26px !important;}
+  #schedule .rh-schedule-mobile > .relative.mt-16 h3{font-size:1.7rem !important;line-height:1.05;}
+  #schedule .rh-schedule-mobile > .relative.mt-16 p{font-size:10px !important;line-height:1.45;}
+  #schedule .mt-6.lg\:mt-4{margin-top:1rem !important;}
+  #schedule .mt-6.lg\:mt-4 p{font-size:9px !important;line-height:1.5;}
+
+  /* ===== Ticket showcase (homepage) ===== */
+  #tickets-preview > section{padding:4.7rem 0 3.8rem !important;background-attachment:scroll !important;}
+  #tickets-preview > section > .max-w-6xl{padding:0 var(--mobile-gutter) !important;}
+  .ticket-showcase-heading{margin-bottom:2rem !important;}
+  .ticket-showcase-title{font-size:clamp(2.55rem,12.5vw,3.9rem) !important;line-height:1 !important;}
+  .ticket-showcase-copy{max-width:34rem;font-size:.88rem !important;line-height:1.65 !important;}
+  .ticket-showcase-stage{grid-template-columns:1fr !important;gap:.85rem !important;}
+  .ticket-showcase-card{min-height:0 !important;border-radius:21px !important;}
+  .ticket-card-content{min-height:0 !important;padding:1rem !important;}
+  .ticket-showcase-card.is-active{transform:translateY(-3px) scale(1.005) !important;}
+  .ticket-showcase-card.is-dimmed{opacity:1 !important;filter:none !important;}
+  .ticket-number{font-size:3rem !important;}
+  .ticket-card-title{font-size:2.55rem !important;}
+  .ticket-price-panel{padding:1rem !important;}
+  .ticket-price-value{font-size:2.25rem !important;}
+  .ticket-feature-grid{grid-template-columns:1fr !important;gap:.45rem !important;}
+  .ticket-feature-item{font-size:.66rem !important;}
+  .ticket-card-footer{align-items:stretch !important;flex-direction:column !important;gap:.7rem !important;}
+  .ticket-buy-button{width:100% !important;min-width:0 !important;min-height:48px !important;}
+  .ticket-selection-rail{margin-top:1rem !important;padding:.8rem !important;gap:.7rem !important;align-items:flex-start !important;}
+  .ticket-selection-rail-mark{width:34px;height:34px;}
+  .ticket-selection-rail strong{font-size:1.05rem !important;}
+  .ticket-rail-button{width:100%;justify-content:center;min-height:46px;}
+  .ticket-showcase-footer-note{font-size:7px !important;}
+
+  /* ===== Mid CTA / Location / FAQ ===== */
+  .rh-mid-cta{padding:4.5rem var(--mobile-gutter) !important;}
+  .rh-mid-cta > .max-w-5xl{padding-left:0 !important;padding-right:0 !important;}
+  .rh-mid-cta h2{font-size:2rem !important;line-height:1.05;}
+  .rh-mid-cta p{font-size:.88rem !important;line-height:1.6;}
+  .rh-mid-cta .flex.flex-col.sm\:flex-row{gap:.6rem !important;}
+  .rh-mid-cta button{width:100%;min-height:48px;}
+
+  #location{padding-top:4.5rem !important;padding-bottom:4.5rem !important;}
+  #location .location-heading{display:flex !important;flex-direction:column !important;gap:1.1rem !important;}
+  #location .location-heading h2{font-size:clamp(2.45rem,12vw,3.6rem) !important;line-height:.98 !important;}
+  #location .location-heading p{max-width:none !important;font-size:.9rem !important;line-height:1.6;}
+  #location .location-scene-card{border-radius:22px !important;}
+  #location .location-hero-media{height:340px !important;}
+  #location .location-scene-card .grid.md\:grid-cols-3{grid-template-columns:1fr !important;}
+  #location .location-scene-card .mt-5.grid{grid-template-columns:1fr !important;}
+  #location .location-scene-card .luxury-btn{width:100%;}
+
+  #faq{padding-top:4.5rem !important;padding-bottom:4.5rem !important;}
+  #faq .grid{grid-template-columns:1fr !important;gap:1.5rem !important;}
+  #faq .faq-scene-heading{position:relative !important;top:auto !important;}
+  #faq .faq-scene-heading h2{font-size:clamp(2.45rem,12vw,3.6rem) !important;line-height:.98 !important;}
+  #faq .faq-scene-heading p{max-width:none !important;font-size:.9rem !important;line-height:1.6;}
+  #faq .faq-scene-list{gap:.65rem !important;}
+  #faq .faq-card button{padding:.85rem .9rem !important;gap:.65rem !important;}
+  #faq .faq-number{width:29px;height:29px;}
+  #faq .faq-card button > span.min-w-0{min-width:0;}
+  #faq .faq-card button > span.min-w-0 > span:last-child{font-size:.86rem !important;line-height:1.35;}
+  #faq .faq-answer-grid > div{padding-left:3.1rem !important;padding-right:.9rem !important;font-size:.78rem !important;line-height:1.6;}
+
+  /* ===== Final scene/footer ===== */
+  .rh-final-cta{padding:4.5rem var(--mobile-gutter) !important;}
+  .rh-final-cta h2{font-size:2.2rem !important;line-height:1.03;}
+  .rh-final-cta p{font-size:.86rem !important;line-height:1.55;}
+  .final-scene{min-height:470px !important;}
+  .final-scene .max-w-7xl{padding-left:var(--mobile-gutter) !important;padding-right:var(--mobile-gutter) !important;}
+  .final-scene h2{font-size:clamp(2.8rem,13vw,4.2rem) !important;}
+  .final-scene p{font-size:1rem !important;line-height:1.5;}
+  footer{padding-top:2.8rem !important;padding-bottom:calc(1.5rem + env(safe-area-inset-bottom,0px)) !important;}
+  footer .grid{gap:1.7rem !important;}
+  footer .footer-link{font-size:11px;}
+
+  /* ===== Ticket Store / Checkout / Digital Pass ===== */
+  #tickets{padding:6.2rem var(--mobile-gutter) 4rem !important;}
+  #tickets > div{padding-left:0 !important;padding-right:0 !important;}
+  #tickets h1{font-size:clamp(2.55rem,12vw,3.7rem) !important;line-height:.98 !important;}
+  #tickets .max-w-3xl{max-width:none !important;}
+  #tickets .grid.md\:grid-cols-2{grid-template-columns:1fr !important;gap:.9rem !important;}
+  #tickets .grid.md\:grid-cols-2 > div{transform:none !important;}
+  #tickets .grid.md\:grid-cols-2 > div:hover{transform:translateY(-3px) !important;}
+  #tickets .grid.md\:grid-cols-2 > div .p-7,
+  #tickets .grid.md\:grid-cols-2 > div .sm\:p-8{padding:1rem !important;}
+  #tickets .grid.md\:grid-cols-2 > div .font-mono.text-4xl{font-size:2.4rem !important;}
+  #tickets .grid.md\:grid-cols-2 > div .space-y-2\.5{gap:.4rem !important;}
+
+  #my-tickets{padding:6.2rem var(--mobile-gutter) 4rem !important;}
+  #my-tickets > div{padding-left:0 !important;padding-right:0 !important;}
+  #my-tickets .grid.lg\:grid-cols-12{grid-template-columns:1fr !important;gap:1rem !important;}
+  #my-tickets .grid.grid-cols-2{grid-template-columns:1fr !important;gap:.8rem !important;}
+  #my-tickets .w-56.h-56{width:min(64vw,224px) !important;height:min(64vw,224px) !important;}
+  #my-tickets .ticket-print-hide{width:100%;}
+  #my-tickets .ticket-print-hide button{width:100%;}
+
+  .fixed.inset-0.z-50.overflow-y-auto{padding:calc(env(safe-area-inset-top,0px) + .75rem) .7rem calc(.75rem + env(safe-area-inset-bottom,0px)) !important;align-items:flex-start !important;}
+  .fixed.inset-0.z-50.overflow-y-auto > div{max-width:none !important;width:100% !important;max-height:calc(100svh - 1.5rem);overflow-y:auto;}
+  .fixed.inset-0.z-50:not(.overflow-y-auto){padding:calc(env(safe-area-inset-top,0px) + .75rem) .7rem calc(.75rem + env(safe-area-inset-bottom,0px)) !important;}
+
+  /* ===== Check-in / Admin ===== */
+  .min-h-screen .max-w-7xl{max-width:none !important;}
+  .min-h-screen .px-4.sm\:px-6.lg\:px-8{padding-left:var(--mobile-gutter) !important;padding-right:var(--mobile-gutter) !important;}
+
+  /* ===== Remove desktop-only pointer treatment on touch devices ===== */
+  .rh-cursor,.rh-cursor-dot,.rh-pointer-glow{display:none !important;}
+  [data-magnetic="true"]{transform:none !important;}
+
+  /* ===== Reduce GPU-heavy decoration while keeping premium feel ===== */
+  .hero-cinematic .hero-grid,
+  .artist-festival-grain,
+  .ticket-card-noise{opacity:.04 !important;}
+  .artist-festival-orbits .orbit-one{width:120vw;height:48vw;left:-10%;}
+  .artist-festival-orbits .orbit-two{width:95vw;height:40vw;left:3%;}
+  .artist-festival-orbits .orbit-three{display:none;}
+}
+
+@media (max-width:390px){
+  .site-navbar > div:first-child > button:first-child span{font-size:9px !important;letter-spacing:.08em !important;}
+  .site-navbar .bg-\[\#D8A934\]{padding:.52rem .6rem !important;font-size:8px !important;}
+  .hero-motion-core h1 > span:first-child{font-size:clamp(2.55rem,14.5vw,3.8rem) !important;}
+  .hero-motion-core h1 > div span:first-child{font-size:clamp(2rem,11.6vw,3rem) !important;}
+  #experience .artist-festival-stage{height:268px !important;}
+  #experience .artist-festival-figure.artist-punch img{height:73% !important;}
+  #experience .artist-festival-figure.artist-thai img{height:86% !important;}
+  #experience .artist-festival-figure.artist-shama img{height:78% !important;}
+  .ticket-showcase-title{font-size:2.45rem !important;}
+  .ticket-card-title{font-size:2.35rem !important;}
+}
+
+@media (prefers-reduced-motion: reduce){
+  [data-magnetic="true"]{transform:none !important;}
+  .rh-cursor,.rh-cursor-dot,.rh-pointer-glow{display:none !important;}
 }
