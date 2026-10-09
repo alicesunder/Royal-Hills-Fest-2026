@@ -198,6 +198,42 @@ export const ticketingApiService = {
     return Array.isArray(data?.orders) ? data.orders as JsonRecord[] : [];
   },
 
+  async getPaymentReviewHistory(accessToken: string, limit = 100): Promise<{
+    events: JsonRecord[];
+    stats: {
+      approved_orders: number;
+      approved_tickets: number;
+      approved_amount_thb: number;
+      review_actions: number;
+    };
+  }> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'admin-history', limit }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'โหลดประวัติการอนุมัติไม่สำเร็จ');
+    }
+    const data = (payload.data && typeof payload.data === 'object' ? payload.data : {}) as JsonRecord;
+    const rawStats = (data.stats && typeof data.stats === 'object' ? data.stats : {}) as JsonRecord;
+    return {
+      events: Array.isArray(data.events) ? data.events as JsonRecord[] : [],
+      stats: {
+        approved_orders: Number(rawStats.approved_orders || 0),
+        approved_tickets: Number(rawStats.approved_tickets || 0),
+        approved_amount_thb: Number(rawStats.approved_amount_thb || 0),
+        review_actions: Number(rawStats.review_actions || 0),
+      },
+    };
+  },
+
   async reviewPaymentOrder(accessToken: string, orderId: string, action: 'approve' | 'reject', note = ''): Promise<JsonRecord> {
     assertConfigured();
     const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
