@@ -76,6 +76,7 @@ export default function App() {
       <Navbar
         activeView={activeView}
         setActiveView={(view) => {
+          if (view === 'my-tickets') setCurrentOrder(null);
           setActiveView(view);
           if (view !== 'home' && view !== 'about' && view !== 'experience' && view !== 'schedule') {
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -102,6 +103,7 @@ export default function App() {
           <TicketStore
             onProceedToCheckout={handleProceedToCheckout}
             onOpenMyTickets={() => {
+              setCurrentOrder(null);
               setActiveView('my-tickets');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -254,6 +256,7 @@ export default function App() {
       {/* Footer */}
       <Footer
         onNavClick={(view) => {
+          if (view === 'my-tickets') setCurrentOrder(null);
           setActiveView(view);
           if (view === 'home') {
             window.scrollTo({ top: 0, behavior: 'smooth' });
