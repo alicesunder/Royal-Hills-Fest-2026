@@ -136,6 +136,18 @@ async function uploadProof(file: File, orderId: string) {
   if (!extension) throw new ApiError(400, "รองรับไฟล์สลิป JPEG, PNG หรือ WebP เท่านั้น");
   if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new ApiError(400, "ไฟล์สลิปต้องมีขนาดไม่เกิน 5 MB");
 
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const isPng = bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e &&
+    bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isWebp = bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+  if ((file.type === "image/png" && !isPng) ||
+      (file.type === "image/jpeg" && !isJpeg) ||
+      (file.type === "image/webp" && !isWebp)) {
+    throw new ApiError(400, "รูปแบบไฟล์ไม่ตรงกับชนิดภาพที่อัปโหลด");
+  }
+
   const path = orderId + "/" + crypto.randomUUID() + "." + extension;
   const root = config().url;
   const encodedPath = path.split("/").map(encodeURIComponent).join("/");
@@ -146,7 +158,7 @@ async function uploadProof(file: File, orderId: string) {
       "cache-control": "3600",
       "x-upsert": "false",
     }),
-    body: await file.arrayBuffer(),
+    body: bytes,
   });
   if (!uploadResponse.ok) {
     await responseJson(uploadResponse);
@@ -408,9 +420,12 @@ Deno.serve(async (request: Request) => {
 
     return Response.json({ data: result }, { status: 200, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
   } catch (error) {
-    const status = error instanceof ApiError ? error.status : 400;
-    const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ";
-    console.error("ticketing-api request failed:", { status, message });
+    const status = error instanceof ApiError ? error.status : 500;
+    const internalMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof ApiError
+      ? error.message
+      : "ระบบเกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่ภายหลัง";
+    console.error("ticketing-api request failed:", { status, message: internalMessage });
     return Response.json({ error: message }, { status, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
   }
 });
