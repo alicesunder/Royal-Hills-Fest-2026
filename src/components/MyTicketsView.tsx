@@ -62,9 +62,9 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
           : serverOrders[0] || null;
 
         setSelectedOrderRecord(wanted);
-        const ticket = wanted?.tickets?.[0]
-          || serverOrders.find((order) => order.paymentStatus === 'PAID' && order.tickets.length > 0)?.tickets[0]
-          || null;
+        const ticket = wanted
+          ? (wanted.tickets[0] || null)
+          : (serverOrders.find((order) => order.paymentStatus === 'PAID' && order.tickets.length > 0)?.tickets[0] || null);
         setSelectedTicket(ticket);
       })
       .catch((error) => {
