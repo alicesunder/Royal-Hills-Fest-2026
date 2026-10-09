@@ -384,7 +384,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                     <div>
                       <label className="block text-[#F3E7C8] font-semibold mb-1">
-                        อีเมลสำหรับรับบัตรและ QR Code <span className="text-[#C96F3D]">*</span>
+                        อีเมลติดต่อผู้ซื้อ <span className="text-[#C96F3D]">*</span>
                       </label>
                       <input
                         type="email"
@@ -396,6 +396,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         placeholder="เช่น thanapat@gmail.com"
                         className="w-full bg-[#182719] border border-[#30391E] rounded-lg px-3 py-2 text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
                       />
+                      <p className="text-[10px] text-[#65705A] mt-1">ใช้ค้นหาและอ้างอิงคำสั่งซื้อ · ขณะนี้ยังไม่มีการส่งบัตรทางอีเมลอัตโนมัติ</p>
                       {errors.buyerEmail && <p className="text-red-400 mt-1">{errors.buyerEmail}</p>}
                     </div>
                   </div>
