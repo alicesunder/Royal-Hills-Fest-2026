@@ -13,7 +13,7 @@ import { TicketPreviewSection } from './components/TicketPreviewSection';
 import { CheckoutModal } from './components/CheckoutModal';
 import { MyTicketsView } from './components/MyTicketsView';
 import { CheckInScanner } from './components/CheckInScanner';
-import { AdminTicketDashboard } from './components/AdminTicketDashboard';
+import { PaymentReviewDashboard } from './components/PaymentReviewDashboard';
 import { ticketStoreService } from './services/ticketStoreService';
 import { ArrowRight, Ticket, CheckCircle2 } from 'lucide-react';
 import { AutoReveal, ScrollRail, Atmosphere, MotionDirector } from './components/fx';
@@ -117,23 +117,18 @@ export default function App() {
             onViewDashboard={() => setActiveView('admin')}
           />
         ) : activeView === 'admin' ? (
-          /* VIEW 4: ADMIN TICKET & SALES DASHBOARD */
-          <AdminTicketDashboard
-            onOpenTicketPass={(ticketId) => {
-              const match = ticketStoreService.getTicketByIdOrToken(ticketId);
-              if (match) {
-                setCurrentOrder(match.order);
-                setActiveView('my-tickets');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-            }}
-            onOpenCheckInScanner={(ticketId) => {
-              setCheckInTargetCode(ticketId);
-              setActiveView('check-in');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        ) : (
+          /* Payment administration is authenticated server-side; mock localStorage admin views are hidden. */
+          <div className="py-16 sm:py-24 bg-[#10140F] min-h-screen">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mb-8">
+                <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#D8A934]">ROYAL HILLS FEST 2026</span>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#FFF9ED] mt-2">ระบบตรวจสอบการชำระเงิน</h1>
+                <p className="text-xs sm:text-sm text-[#F3E7C8]/70 mt-2">ข้อมูลจริงจาก Supabase · ต้องเข้าสู่ระบบผู้ดูแลก่อนตรวจสอบสลิปหรือออกบัตร</p>
+              </div>
+              <PaymentReviewDashboard />
+            </div>
+          </div>
+: (
           /* VIEW 5: MAIN FESTIVAL HOMEPAGE */
           <div>
             <MotionDirector />
