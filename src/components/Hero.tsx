@@ -205,15 +205,15 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
           {/* Subtle gold back-glow behind main title */}
           <div className="absolute inset-0 bg-[#D8A934]/10 blur-3xl rounded-full -z-10" />
 
-          <h1 className="font-display tracking-tight text-[#FFF9ED] select-none leading-[0.9]">
-            <span className="block text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold tracking-[-0.03em] drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
+          <h1 className="hero-main-title font-display tracking-tight text-[#FFF9ED] select-none leading-[0.9]">
+            <span className="hero-main-title-line block text-[clamp(2.05rem,8.9vw,3.65rem)] sm:text-7xl md:text-8xl lg:text-9xl font-extrabold tracking-[-0.04em] drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]">
               ROYAL HILLS
             </span>
             <div className="flex items-baseline justify-center gap-3 sm:gap-6 mt-1 sm:mt-2">
-              <span className="font-display text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-r from-[#FFF9ED] via-[#F5D061] to-[#D8A934] bg-clip-text text-transparent drop-shadow-[0_8px_30px_rgba(216,169,52,0.4)]">
+              <span className="hero-fest-word font-display text-[clamp(2rem,8vw,2.85rem)] sm:text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-r from-[#FFF9ED] via-[#F5D061] to-[#D8A934] bg-clip-text text-transparent drop-shadow-[0_8px_30px_rgba(216,169,52,0.4)]">
                 FEST
               </span>
-              <span className="font-mono text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extralight tracking-[0.18em] text-[#F3E7C8]/90">
+              <span className="hero-year-word font-mono text-[clamp(1.5rem,6.1vw,2.4rem)] sm:text-5xl md:text-6xl lg:text-7xl font-extralight tracking-[0.14em] text-[#F3E7C8]/90">
                 2026
               </span>
             </div>
@@ -231,7 +231,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
         </div>
 
         {/* Event Date & Location Pill Anchor */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm font-mono text-[#F3E7C8] bg-[#141d13]/85 border border-[#30391E] px-5 py-2.5 rounded-full shadow-2xl backdrop-blur-md">
+        <div className="hero-event-pill mt-6 flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm font-mono text-[#F3E7C8] bg-[#141d13]/85 border border-[#30391E] px-5 py-2.5 rounded-full shadow-2xl backdrop-blur-md">
           <span className="flex items-center gap-2 font-semibold text-[#FFF9ED]">
             <Calendar className="w-4 h-4 text-[#D8A934]" />
             วันเสาร์ที่ 14 พฤศจิกายน 2569
@@ -247,7 +247,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
             PREMIUM COUNTDOWN CLOCK: LUXURY GOLF CLUB TIMER
             ======================================================== */}
         <div className="mt-7 sm:mt-9 w-full max-w-md mx-auto">
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 p-2 rounded-2xl bg-[#0c120c]/85 border border-[#D8A934]/40 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+          <div className="hero-countdown-grid grid grid-cols-4 gap-2 sm:gap-3 p-2 rounded-2xl bg-[#0c120c]/85 border border-[#D8A934]/40 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-xl">
             {countdown.map(([enLabel, val, thLabel]) => (
               <div
                 key={enLabel}
@@ -295,9 +295,9 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
         </div>
 
         {/* Trust Badges */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-[11px] text-[#F3E7C8]/75 font-mono">
+        <div className="hero-trust-badges mt-6 flex flex-wrap items-center justify-center gap-4 text-[11px] text-[#F3E7C8]/75 font-mono">
           <span className="flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5 text-[#D8A934]" /> รับบัตรดิจิทัลพร้อม QR ทันที
+            <Check className="w-3.5 h-3.5 text-[#D8A934]" /> รับบัตรดิจิทัลพร้อม QR หลังอนุมัติ
           </span>
           <span className="text-[#30391E]">•</span>
           <span className="flex items-center gap-1.5">
