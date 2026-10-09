@@ -83,9 +83,14 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
   };
 
   const handleQuantityChange = (typeId: string, delta: number, maxAvailable: number) => {
+    const ticket = ticketTypes.find((item) => item.id === typeId);
+    const fallbackLimit = typeId === 'tt-vip' ? 6 : 10;
+    const maxPerOrder = Math.max(1, Number(ticket?.maxPerOrder || fallbackLimit));
+    const quantityLimit = Math.min(maxAvailable, maxPerOrder);
+
     setQuantities((prev) => {
       const current = prev[typeId] || 0;
-      const next = Math.max(0, Math.min(maxAvailable, current + delta));
+      const next = Math.max(0, Math.min(quantityLimit, current + delta));
       return { ...prev, [typeId]: next };
     });
   };
@@ -292,7 +297,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       <div className="flex items-center justify-between text-xs font-semibold text-[#F3E7C8]/90 px-1">
                         <span>จำนวนบัตร:</span>
                         <span className="text-[11px] text-[#65705A] font-mono font-normal">
-                          1 ใบ = {normalTicket.price.toLocaleString()} บาท
+                          ซื้อได้สูงสุด {normalTicket.maxPerOrder || 10} ใบ / คำสั่งซื้อ
                         </span>
                       </div>
 
@@ -514,7 +519,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       <div className="flex items-center justify-between text-xs font-semibold text-[#D8A934] px-1">
                         <span>จำนวนโต๊ะ VIP:</span>
                         <span className="text-[11px] text-[#F3E7C8]/80 font-mono font-normal">
-                          1 โต๊ะ = {vipTicket.price.toLocaleString()} บาท (6 ที่นั่ง)
+                          ซื้อได้สูงสุด {vipTicket.maxPerOrder || 6} โต๊ะ / คำสั่งซื้อ
                         </span>
                       </div>
 
