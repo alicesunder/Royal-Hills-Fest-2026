@@ -255,6 +255,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setStep(4);
       } else if (refreshed.order.paymentStatus === 'VERIFYING') {
         setPaymentNotice('ได้รับหลักฐานแล้ว ยังรอเจ้าหน้าที่ตรวจสอบยอดเงินในบัญชี');
+      } else if (refreshed.order.paymentStatus === 'PENDING' && refreshed.reviewNote) {
+        setPaymentNotice('เจ้าหน้าที่ปฏิเสธหลักฐาน: ' + refreshed.reviewNote + ' · กรุณาส่งสลิปใหม่ภายใน 15 นาที');
       } else {
         setPaymentNotice('สถานะล่าสุด: ' + (
           refreshed.order.paymentStatus === 'CANCELLED' ? 'ยกเลิกแล้ว' :
