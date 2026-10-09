@@ -63,6 +63,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Server-created order and manual PromptPay proof workflow.
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  const [checkoutCredentials, setCheckoutCredentials] = useState<{ idempotencyKey: string; lookupToken: string } | null>(null);
   const [lookupToken, setLookupToken] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
@@ -178,7 +179,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setPaymentNotice('');
     setIsCreatingOrder(true);
     try {
-      const credentials = ticketingApiService.createCredentials();
+      // Keep the same idempotency key and lookup token when the network fails and the buyer retries.
+      const credentials = checkoutCredentials || ticketingApiService.createCredentials();
+      if (!checkoutCredentials) setCheckoutCredentials(credentials);
       const result = await ticketingApiService.createOrder({
         buyerName: buyerName.trim(),
         buyerPhone: buyerPhone.trim(),
