@@ -12,9 +12,11 @@ In **Cloudflare Dashboard → Workers & Pages → the Pages project → Settings
 
 Then run a new build/deployment. **Never set a service-role or secret key as a `VITE_*` variable or commit it to GitHub.**
 
-## 2. Add the authentic PromptPay QR image
+## 2. PromptPay QR image
 
-Copy the exact QR image issued for the receiving account to `public/promptpay-qr.png`. Do not redraw/re-create the QR or use a sample. Check it with the receiving bank/app before opening sales. The site does not claim that this static QR detects incoming transfers automatically.
+The checkout now defaults to `/promptpay-qr.svg`. This vector QR was generated from the exact 74-character payload decoded from the SCB/PromptPay image supplied by the event owner; a round-trip decode test confirmed that the payload matches. The displayed pattern is regenerated in black and white, so it does not retain the SCB logo shown in the original screenshot.
+
+Before opening sales, scan the displayed QR with the receiving bank app and verify the beneficiary details yourself. This is a static receiving QR: it does not detect incoming transfers, verify an amount, or confirm payment automatically. An enabled admin must still compare the real incoming bank transaction before approving a payment.
 
 ## 3. Create the payment-review admin
 
@@ -61,4 +63,5 @@ Email delivery is not integrated yet. The buyer email is collected for order ref
 - Database schema and manual review workflow are deployed in Supabase.
 - Edge Function `ticketing-api` is deployed.
 - Frontend is on the non-production `cloudflare-pages-setup` Git branch.
-- Real QR image and admin allowlist are still owner-specific setup steps. Live sales remain disabled.
+- PromptPay QR SVG is present, but the recipient must still be verified in the banking app before launch.
+- Admin allowlist is not configured yet. Ticket types remain inactive and live sales remain disabled.
