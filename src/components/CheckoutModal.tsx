@@ -49,8 +49,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const normalQty = normalItem?.quantity || 0;
   const vipTableQty = vipItem?.quantity || 0;
 
-  // Order Calculation: (normalQuantity × 555) + (vipTableQuantity × 5555)
-  const totalAmount = normalQty * 555 + vipTableQty * 5555;
+  // Preview the total from the selected cart; the server recalculates it from trusted database prices.
+  const totalAmount = cart.reduce((sum, item) => sum + item.ticketType.price * item.quantity, 0);
 
   // Normal Ticket Attendees
   const [normalAttendees, setNormalAttendees] = useState<AttendeeInfo[]>([]);
@@ -551,10 +551,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="flex items-center justify-between py-2 border-b border-[#30391E]/40">
                       <div>
                         <p className="font-semibold text-[#FFF9ED]">บัตรปกติ</p>
-                        <p className="text-[#65705A]">฿555 × {normalQty} คน</p>
+                        <p className="text-[#65705A]">฿{(normalItem?.ticketType.price || 555).toLocaleString()} × {normalQty} คน</p>
                       </div>
                       <div className="font-mono font-bold text-[#FFF9ED]">
-                        ฿{(normalQty * 555).toLocaleString()}
+                        ฿{(normalQty * (normalItem?.ticketType.price || 555)).toLocaleString()}
                       </div>
                     </div>
                   )}
@@ -567,11 +567,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           บัตร VIP (1 โต๊ะ / 6 ที่นั่ง)
                         </p>
                         <p className="text-[#65705A]">
-                          ฿5,555 × {vipTableQty} โต๊ะ ({vipTableQty * 6} ที่นั่ง)
+                          ฿{(vipItem?.ticketType.price || 5555).toLocaleString()} × {vipTableQty} โต๊ะ ({vipTableQty * 6} ที่นั่ง)
                         </p>
                       </div>
                       <div className="font-mono font-bold text-[#D8A934]">
-                        ฿{(vipTableQty * 5555).toLocaleString()}
+                        ฿{(vipTableQty * (vipItem?.ticketType.price || 5555)).toLocaleString()}
                       </div>
                     </div>
                   )}
@@ -647,7 +647,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {/* Payment Timer */}
               <div className="inline-flex items-center gap-2 bg-[#10140F] px-4 py-1.5 rounded-full border border-[#30391E] text-xs font-mono text-[#D8A934]">
                 <Clock className="w-3.5 h-3.5" />
-                <span>กรุณาชำระเงินภายใน: {formatTimer(timeLeftSeconds)} นาที</span>
+                <span>เวลาที่เหลือสำหรับชำระเงิน: {formatTimer(timeLeftSeconds)}</span>
               </div>
 
               <div className="bg-[#10140F] p-6 rounded-2xl border border-[#30391E] max-w-sm mx-auto shadow-inner">
