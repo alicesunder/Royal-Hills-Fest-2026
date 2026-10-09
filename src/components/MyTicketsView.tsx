@@ -355,6 +355,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                     character.charCodeAt(0).toString(2).padStart(8, '0').split('').map((bit, bitIndex) => (
                       <span
                         key={charIndex * 8 + bitIndex}
+                        className={bit === '1' ? 'rhf-barcode-bar' : 'rhf-barcode-space'}
                         style={{ width: bit === '1' ? '2.5px' : '1px' }}
                       />
                     ))
