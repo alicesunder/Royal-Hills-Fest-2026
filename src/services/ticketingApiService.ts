@@ -257,6 +257,7 @@ export const ticketingApiService = {
         name: String(item.name || template.name),
         description: String(item.description || template.description),
         price: Number(item.price_thb ?? template.price),
+        maxPerOrder: Math.max(1, Number(item.max_per_order ?? template.maxPerOrder ?? (code === 'tt-vip' ? 6 : 10))),
         totalQuantity: capacity,
         soldQuantity: sold,
         remainingQuantity: remaining,
