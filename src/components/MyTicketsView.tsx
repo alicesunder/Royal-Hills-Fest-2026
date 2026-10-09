@@ -46,38 +46,21 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   const [ordersError, setOrdersError] = useState('');
   const [copiedId, setCopiedId] = useState(false);
 
-  // Load orders from Supabase using the private lookup credentials stored at checkout.
+  // Do not automatically fetch/show saved orders just by opening this page.
+  // Only the explicit post-checkout success flow may pass a paid order directly.
   useEffect(() => {
-    let active = true;
-    setLoadingOrders(true);
+    if (initialOrder?.paymentStatus === 'PAID' && initialOrder.tickets?.length > 0) {
+      setOrders([initialOrder]);
+      setSelectedOrderRecord(initialOrder);
+      setSelectedTicket(initialOrder.tickets[0] || null);
+    } else {
+      setOrders([]);
+      setSelectedOrderRecord(null);
+      setSelectedTicket(null);
+      setSelectedTicketQr('');
+    }
+    setLoadingOrders(false);
     setOrdersError('');
-
-    ticketingApiService.getSavedOrders()
-      .then((results) => {
-        if (!active) return;
-        const serverOrders = results.map((item) => item.order)
-          .sort((a, b) => b.createdAt - a.createdAt);
-        setOrders(serverOrders);
-
-        const wanted = initialOrder
-          ? serverOrders.find((order) => order.id === initialOrder.id) || initialOrder
-          : serverOrders[0] || null;
-
-        setSelectedOrderRecord(wanted);
-        const ticket = wanted
-          ? (wanted.tickets[0] || null)
-          : (serverOrders.find((order) => order.paymentStatus === 'PAID' && order.tickets.length > 0)?.tickets[0] || null);
-        setSelectedTicket(ticket);
-      })
-      .catch((error) => {
-        if (!active) return;
-        setOrdersError(error instanceof Error ? error.message : 'โหลดคำสั่งซื้อไม่สำเร็จ');
-      })
-      .finally(() => {
-        if (active) setLoadingOrders(false);
-      });
-
-    return () => { active = false; };
   }, [initialOrder]);
 
   const handleRefreshSelectedOrder = async () => {
@@ -251,7 +234,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                   type="text"
                   value={lookupQuery}
                   onChange={(e) => setLookupQuery(e.target.value)}
-                  placeholder="เลขคำสั่งซื้อ, อีเมล หรือรหัสบัตร/โต๊ะ"
+                  placeholder="เลขคำสั่งซื้อ (เช่น RHF26-...)"
                   className="w-full bg-[#10140F] border border-[#30391E] rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
                 />
               </div>
@@ -641,10 +624,10 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               <Ticket className="w-12 h-12 text-[#65705A] mx-auto" />
             )}
             <h3 className="font-display text-xl font-bold text-[#FFF9ED]">
-              {loadingOrders ? 'กำลังโหลดคำสั่งซื้อ...' : 'ยังไม่พบบัตรเข้างานในระบบ'}
+              {loadingOrders ? 'กำลังค้นหาคำสั่งซื้อ...' : 'ค้นหาคำสั่งซื้อเพื่อแสดงบัตรของคุณ'}
             </h3>
             <p className="text-xs text-[#F3E7C8]/75">
-              {ordersError || 'เมื่อชำระเงินและเจ้าหน้าที่อนุมัติแล้ว บัตรดิจิทัลจะปรากฏในหน้านี้'}
+              {ordersError || 'กรอกเลขคำสั่งซื้อและรหัสติดตามส่วนตัว แล้วกดค้นหา ระบบจะแสดงบัตรเมื่อคำสั่งซื้อได้รับการอนุมัติแล้ว'}
             </p>
             {orders.length > 0 && (
               <div className="text-left pt-2 space-y-2">
