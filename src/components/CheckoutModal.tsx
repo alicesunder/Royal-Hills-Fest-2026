@@ -298,10 +298,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#10140F]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#182719] border border-[#30391E] rounded-2xl shadow-2xl overflow-hidden my-8">
+    <div className="checkout-backdrop fixed inset-0 z-50 overflow-y-auto bg-[#10140F]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+      <div className="checkout-panel relative w-full max-w-2xl bg-[#182719] border border-[#30391E] rounded-2xl shadow-2xl overflow-hidden my-8">
         {/* Top Header */}
-        <div className="px-6 py-4 bg-[#10140F] border-b border-[#30391E] flex items-center justify-between">
+        <div className="checkout-panel-header px-6 py-4 bg-[#10140F] border-b border-[#30391E] flex items-center justify-between">
           <div>
             <span className="text-[10px] font-semibold tracking-widest uppercase text-[#D8A934]">
               ROYAL HILLS FEST 2026
@@ -324,7 +324,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
 
         {/* Step Progress Line */}
-        <div className="px-6 py-2.5 bg-[#141d15] border-b border-[#30391E]/60 flex items-center justify-between text-[11px] text-[#65705A]">
+        <div className="checkout-step-progress px-6 py-2.5 bg-[#141d15] border-b border-[#30391E]/60 flex items-center justify-between text-[11px] text-[#65705A]">
           <span className={step >= 1 ? 'text-[#D8A934] font-semibold' : ''}>1. ข้อมูล</span>
           <span>&rarr;</span>
           <span className={step >= 2 ? 'text-[#D8A934] font-semibold' : ''}>2. ตรวจสอบ</span>
@@ -335,7 +335,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
 
         {/* BODY CONTENT */}
-        <div className="p-6 sm:p-8 max-h-[75vh] overflow-y-auto">
+        <div className="checkout-body p-6 sm:p-8 max-h-[75vh] overflow-y-auto">
           {/* STEP 1: ข้อมูลผู้ซื้อ & ผู้เข้าร่วม */}
           {step === 1 && (
             <form onSubmit={handleProceedToSummary} className="space-y-6">
