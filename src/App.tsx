@@ -14,7 +14,7 @@ import { CheckoutModal } from './components/CheckoutModal';
 import { MyTicketsView } from './components/MyTicketsView';
 import { CheckInScanner } from './components/CheckInScanner';
 import { PaymentReviewDashboard } from './components/PaymentReviewDashboard';
-import { ticketStoreService } from './services/ticketStoreService';
+import { ticketingApiService } from './services/ticketingApiService';
 import { ArrowRight, Ticket, CheckCircle2 } from 'lucide-react';
 import { AutoReveal, ScrollRail, Atmosphere, MotionDirector } from './components/fx';
 
@@ -37,13 +37,19 @@ export default function App() {
     setIsCheckoutOpen(true);
   };
 
-  // User clicks a ticket type from Homepage preview
-  const handleSelectFromPreview = (typeId: string) => {
-    const types = ticketStoreService.getTicketTypes();
-    const found = types.find((t) => t.id === typeId);
-    if (found) {
+  // Homepage preview selection must use the same live catalogue as the ticket store.
+  const handleSelectFromPreview = async (typeId: string) => {
+    try {
+      const types = await ticketingApiService.getCatalog();
+      const found = types.find((ticket) => ticket.id === typeId);
+      if (!found || found.saleStatus !== 'ACTIVE' || found.remainingQuantity < 1) {
+        showNotification('บัตรประเภทนี้ยังไม่เปิดขายหรือไม่มีจำนวนคงเหลือ กรุณาลองใหม่อีกครั้ง');
+        return;
+      }
       setActiveCart([{ ticketType: found, quantity: 1 }]);
       setIsCheckoutOpen(true);
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'ยังเชื่อมต่อระบบจำหน่ายบัตรไม่ได้');
     }
   };
 
