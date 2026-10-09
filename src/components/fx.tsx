@@ -358,7 +358,9 @@ export const MotionDirector: React.FC = () => {
     };
 
     const requestSceneProgress = () => {
-      if (progressRaf) return;
+      // Scene progress drives decorative parallax only. On touch/reduced-motion devices,
+      // leave the CSS defaults in place rather than measuring every section on every scroll.
+      if (coarse || reduce || progressRaf) return;
       progressRaf = requestAnimationFrame(updateSceneProgress);
     };
 
@@ -415,7 +417,7 @@ export const MotionDirector: React.FC = () => {
     }
 
     onScroll();
-    updateSceneProgress();
+    if (!coarse && !reduce) updateSceneProgress();
 
     const io = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -508,6 +510,9 @@ export const ScrollRail: React.FC = () => {
   const [shown, setShown] = useState(false);
 
   useEffect(() => {
+    // The rail is hidden below xl in CSS; skip its layout/scroll work on phones and tablets.
+    if (window.matchMedia('(max-width: 1279px)').matches) return;
+
     let tops: number[] = [];
     let raf = 0;
 
