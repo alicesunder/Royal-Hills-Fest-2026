@@ -74,6 +74,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [checkoutError, setCheckoutError] = useState('');
   const [paymentNotice, setPaymentNotice] = useState('');
   const [copiedOrderId, setCopiedOrderId] = useState(false);
+  const [copiedLookupDetails, setCopiedLookupDetails] = useState(false);
 
   // Initialize Normal attendees
   useEffect(() => {
@@ -272,6 +273,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     navigator.clipboard.writeText(createdOrder.id);
     setCopiedOrderId(true);
     setTimeout(() => setCopiedOrderId(false), 2000);
+  };
+
+  const handleCopyLookupDetails = async () => {
+    if (!createdOrder || !lookupToken) return;
+    const details = 'ROYAL HILLS FEST 2026\nเลขคำสั่งซื้อ: ' + createdOrder.id +
+      '\nรหัสติดตามส่วนตัว: ' + lookupToken +
+      '\nเก็บรหัสนี้เป็นส่วนตัว ใช้ตรวจสอบสถานะคำสั่งซื้อของคุณ';
+    try {
+      await navigator.clipboard.writeText(details);
+      setCopiedLookupDetails(true);
+      setTimeout(() => setCopiedLookupDetails(false), 2500);
+    } catch {
+      setCheckoutError('คัดลอกอัตโนมัติไม่ได้ กรุณาเลือกและคัดลอกรหัสติดตามด้วยตนเอง');
+    }
   };
 
   const formatTimer = (seconds: number) => {
@@ -676,6 +691,28 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     ผู้ดูแลยังไม่ได้ตั้งค่าภาพ QR PromptPay กรุณาติดต่อผู้จัดงาน และอย่าโอนเงินจนกว่าจะยืนยัน QR ทางการ
                   </div>
                 )}
+              </div>
+
+              <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 text-left space-y-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#65705A]">เลขคำสั่งซื้อ</p>
+                  <p className="font-mono text-sm font-bold text-[#D8A934] break-all">{createdOrder.id}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#65705A]">รหัสติดตามส่วนตัว (Order access key)</p>
+                  <p className="font-mono text-xs text-[#F3E7C8] break-all select-all">{lookupToken}</p>
+                </div>
+                <p className="text-[11px] text-[#F3E7C8]/70 leading-relaxed">
+                  เก็บเลขคำสั่งซื้อและรหัสติดตามนี้ไว้ ใช้เปิดดูสถานะหรือบัตรภายหลัง ห้ามแชร์รหัสติดตามกับผู้อื่น
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopyLookupDetails}
+                  className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-xs font-bold text-[#D8A934] flex items-center justify-center gap-2"
+                >
+                  {copiedLookupDetails ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiedLookupDetails ? 'คัดลอกข้อมูลแล้ว' : 'คัดลอกเลขคำสั่งซื้อและรหัสติดตาม'}
+                </button>
               </div>
 
               {createdOrder.paymentStatus === 'VERIFYING' ? (
