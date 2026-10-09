@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Atmosphere, CountUp } from './fx';
 import { TicketType } from '../types';
-import { ticketStoreService } from '../services/ticketStoreService';
+import { OFFICIAL_TICKET_TYPES } from '../services/ticketStoreService';
+import { ticketingApiService } from '../services/ticketingApiService';
 import {
   ArrowRight,
   Check,
@@ -29,14 +30,39 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
   onSelectTicketType,
   onViewAllTickets,
 }) => {
+  const closedTemplates = () => OFFICIAL_TICKET_TYPES.map((ticket) => ({
+    ...ticket,
+    soldQuantity: 0,
+    remainingQuantity: 0,
+    saleStatus: 'CLOSED' as const,
+  }));
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [cardMousePos, setCardMousePos] = useState<Record<string, MousePoint>>({});
-  const ticketTypes = ticketStoreService.getTicketTypes();
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>(closedTemplates);
+
+  useEffect(() => {
+    let cancelled = false;
+    ticketingApiService.getCatalog()
+      .then((liveTypes) => {
+        if (cancelled) return;
+        const liveByCode = new Map(liveTypes.map((ticket) => [ticket.id, ticket]));
+        setTicketTypes(OFFICIAL_TICKET_TYPES.map((template) => liveByCode.get(template.id) || {
+          ...template,
+          soldQuantity: 0,
+          remainingQuantity: 0,
+          saleStatus: 'CLOSED' as const,
+        }));
+      })
+      .catch(() => {
+        if (!cancelled) setTicketTypes(closedTemplates());
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const normalTicket = ticketTypes.find((t) => t.id === 'tt-normal') || ticketTypes[0];
   const vipTicket = ticketTypes.find((t) => t.id === 'tt-vip') || ticketTypes[1];
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, id: string) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>, id: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
@@ -54,7 +80,10 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
     const isVip = kind === 'vip';
     const isHovered = hoveredId === ticket.id;
     const isAnotherHovered = hoveredId !== null && hoveredId !== ticket.id;
-    const isSoldOut = ticket.remainingQuantity <= 0 || ticket.saleStatus === 'SOLD_OUT';
+    const isSoldOut = ticket.saleStatus === 'SOLD_OUT' ||
+      (ticket.saleStatus === 'ACTIVE' && ticket.remainingQuantity <= 0);
+    const isNotOnSale = ticket.saleStatus !== 'ACTIVE' && !isSoldOut;
+    const isUnavailable = isSoldOut || isNotOnSale;
     const pos = cardMousePos[ticket.id] || { x: 0, y: 0 };
     const rotateX = isHovered ? -pos.y * 6 : 0;
     const rotateY = isHovered ? pos.x * 8 : 0;
@@ -71,7 +100,7 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
         tabIndex={0}
         className={`ticket-showcase-card ${isVip ? 'ticket-showcase-card--vip' : 'ticket-showcase-card--normal'} ${
           isHovered ? 'is-active' : ''
-        } ${isAnotherHovered ? 'is-dimmed' : ''} ${isSoldOut ? 'is-sold-out' : ''}`}
+        } ${isAnotherHovered ? 'is-dimmed' : ''} ${isUnavailable ? 'is-sold-out' : ''}`}
         style={
           {
             '--mx': `${50 + pos.x * 22}%`,
@@ -117,7 +146,7 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
             </div>
 
             <div className={`ticket-availability ${isSoldOut ? 'is-sold' : ''}`}>
-              {isSoldOut ? 'SOLD OUT' : isVip ? `เหลือ ${ticket.remainingQuantity} โต๊ะ` : `เหลือ ${ticket.remainingQuantity} ใบ`}
+              {isSoldOut ? 'SOLD OUT' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : isVip ? `เหลือ ${ticket.remainingQuantity} โต๊ะ` : `เหลือ ${ticket.remainingQuantity} ใบ`}
             </div>
           </div>
 
@@ -140,7 +169,7 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
             <div>
               <span className="ticket-price-label">{isVip ? 'VIP TABLE PRICE' : 'ENTRY PRICE'}</span>
               <div className={`ticket-price-value ${isVip ? 'ticket-price-value--gold' : ''}`}>
-                ฿<CountUp to={isVip ? 5555 : 555} />
+                ฿<CountUp to={ticket.price} />
                 <span className="ticket-price-currency">THB</span>
               </div>
             </div>
@@ -166,12 +195,12 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
             </div>
             <button
               type="button"
-              disabled={isSoldOut}
+              disabled={isUnavailable}
               onClick={() => onSelectTicketType(ticket.id)}
-              className={`ticket-buy-button ${isVip ? 'ticket-buy-button--vip' : ''} ${isSoldOut ? 'is-disabled' : ''}`}
+              className={`ticket-buy-button ${isVip ? 'ticket-buy-button--vip' : ''} ${isUnavailable ? 'is-disabled' : ''}`}
             >
-              {isSoldOut ? 'SOLD OUT' : isVip ? 'เลือกโต๊ะ VIP' : 'เลือกบัตร'}
-              {!isSoldOut && <ArrowRight className="h-4 w-4" />}
+              {isSoldOut ? 'SOLD OUT' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : isVip ? 'เลือกโต๊ะ VIP' : 'เลือกบัตร'}
+              {!isUnavailable && <ArrowRight className="h-4 w-4" />}
             </button>
           </div>
         </div>

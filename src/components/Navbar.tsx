@@ -36,6 +36,27 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) setMobileMenuOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [mobileMenuOpen]);
+
   const homeLike = ['home', 'about', 'experience', 'schedule'].includes(activeView);
   const current = homeLike ? spy : activeView;
 
@@ -123,7 +144,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="lg:hidden p-2 text-[#F3E7C8] hover:text-[#FFF9ED] focus:outline-none"
-            aria-label="เปิดเมนู"
+            type="button"
+            aria-label={mobileMenuOpen ? 'ปิดเมนู' : 'เปิดเมนู'}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -132,8 +156,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#10140F]/98 border-b border-[#30391E] px-5 py-6 space-y-4 shadow-2xl backdrop-blur-xl animate-in fade-in duration-150">
-          <div className="flex flex-col space-y-3 text-sm font-medium tracking-wide text-[#F3E7C8]">
+        <nav
+          id="mobile-navigation"
+          aria-label="เมนูหลักบนมือถือ"
+          className="mobile-nav-drawer lg:hidden bg-[#10140F]/98 border-b border-[#30391E] px-4 sm:px-5 py-4 sm:py-6 space-y-3 shadow-2xl backdrop-blur-xl animate-in fade-in duration-150"
+        >
+          <div className="mobile-nav-links flex flex-col space-y-1.5 text-sm font-medium tracking-wide text-[#F3E7C8]">
             <button
               onClick={() => handleNavClick('home')}
               className="text-left py-2 hover:text-[#D8A934] transition-colors"
@@ -172,20 +200,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Ticket className="w-4 h-4 text-[#D8A934]" />
               บัตรของฉัน (Digital Tickets / QR Code)
             </button>
-            <button
-              onClick={() => handleNavClick('check-in')}
-              className="text-left py-2 hover:text-[#D8A934] transition-colors flex items-center gap-2"
+            <div className="mobile-nav-staff-group mt-2 pt-3 border-t border-[#30391E]">
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#65705A]">สำหรับเจ้าหน้าที่</p>
+              <button
+                onClick={() => handleNavClick('check-in')}
+                className="mobile-nav-staff-link text-left py-2 hover:text-[#D8A934] transition-colors flex items-center gap-2"
             >
               <ScanLine className="w-4 h-4 text-[#C96F3D]" />
               เช็กอินหน้างาน (สแกนบัตร)
             </button>
-            <button
-              onClick={() => handleNavClick('admin')}
-              className="text-left py-2 hover:text-[#D8A934] transition-colors flex items-center gap-2"
+              <button
+                onClick={() => handleNavClick('admin')}
+                className="mobile-nav-staff-link text-left py-2 hover:text-[#D8A934] transition-colors flex items-center gap-2"
             >
               <Shield className="w-4 h-4 text-[#65705A]" />
-              ระบบจัดการหน้างาน / แดชบอร์ดบัตร
-            </button>
+                ระบบจัดการหน้างาน / แดชบอร์ดบัตร
+              </button>
+            </div>
           </div>
           <div className="pt-2 border-t border-[#30391E]">
             <button
@@ -199,7 +230,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ซื้อบัตรเข้าร่วมงาน
             </button>
           </div>
-        </div>
+        </nav>
       )}
       <ScrollProgressBar />
     </header>

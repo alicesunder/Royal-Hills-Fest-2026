@@ -12,7 +12,8 @@ export interface TicketType {
   name: string; // "บัตรปกติ" or "VIP"
   badge: string; // "NORMAL" or "VIP TABLE"
   description: string;
-  price: number; // 555 for normal, 5555 for VIP
+  price: number; // price in THB
+  maxPerOrder?: number; // enforced by the database and UI
   unitType: 'PERSON' | 'TABLE';
   unitLabel: string; // "คน" or "โต๊ะ"
   seatsPerUnit: number; // 1 for normal, 6 for VIP

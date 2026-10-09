@@ -12,9 +12,9 @@ import { TicketStore } from './components/TicketStore';
 import { TicketPreviewSection } from './components/TicketPreviewSection';
 import { CheckoutModal } from './components/CheckoutModal';
 import { MyTicketsView } from './components/MyTicketsView';
-import { CheckInScanner } from './components/CheckInScanner';
-import { AdminTicketDashboard } from './components/AdminTicketDashboard';
-import { ticketStoreService } from './services/ticketStoreService';
+import { SecureCheckInScanner } from './components/SecureCheckInScanner';
+import { PaymentReviewDashboard } from './components/PaymentReviewDashboard';
+import { ticketingApiService } from './services/ticketingApiService';
 import { ArrowRight, Ticket, CheckCircle2 } from 'lucide-react';
 import { AutoReveal, ScrollRail, Atmosphere, MotionDirector } from './components/fx';
 
@@ -37,13 +37,19 @@ export default function App() {
     setIsCheckoutOpen(true);
   };
 
-  // User clicks a ticket type from Homepage preview
-  const handleSelectFromPreview = (typeId: string) => {
-    const types = ticketStoreService.getTicketTypes();
-    const found = types.find((t) => t.id === typeId);
-    if (found) {
+  // Homepage preview selection must use the same live catalogue as the ticket store.
+  const handleSelectFromPreview = async (typeId: string) => {
+    try {
+      const types = await ticketingApiService.getCatalog();
+      const found = types.find((ticket) => ticket.id === typeId);
+      if (!found || found.saleStatus !== 'ACTIVE' || found.remainingQuantity < 1) {
+        showNotification('บัตรประเภทนี้ยังไม่เปิดขายหรือไม่มีจำนวนคงเหลือ กรุณาลองใหม่อีกครั้ง');
+        return;
+      }
       setActiveCart([{ ticketType: found, quantity: 1 }]);
       setIsCheckoutOpen(true);
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'ยังเชื่อมต่อระบบจำหน่ายบัตรไม่ได้');
     }
   };
 
@@ -70,6 +76,7 @@ export default function App() {
       <Navbar
         activeView={activeView}
         setActiveView={(view) => {
+          if (view === 'my-tickets') setCurrentOrder(null);
           setActiveView(view);
           if (view !== 'home' && view !== 'about' && view !== 'experience' && view !== 'schedule') {
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -96,6 +103,7 @@ export default function App() {
           <TicketStore
             onProceedToCheckout={handleProceedToCheckout}
             onOpenMyTickets={() => {
+              setCurrentOrder(null);
               setActiveView('my-tickets');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -112,27 +120,19 @@ export default function App() {
           />
         ) : activeView === 'check-in' ? (
           /* VIEW 3: ON-SITE GATE CHECK-IN SCANNER */
-          <CheckInScanner
-            initialCode={checkInTargetCode}
-            onViewDashboard={() => setActiveView('admin')}
-          />
+          <SecureCheckInScanner initialCode={checkInTargetCode} />
         ) : activeView === 'admin' ? (
-          /* VIEW 4: ADMIN TICKET & SALES DASHBOARD */
-          <AdminTicketDashboard
-            onOpenTicketPass={(ticketId) => {
-              const match = ticketStoreService.getTicketByIdOrToken(ticketId);
-              if (match) {
-                setCurrentOrder(match.order);
-                setActiveView('my-tickets');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-            }}
-            onOpenCheckInScanner={(ticketId) => {
-              setCheckInTargetCode(ticketId);
-              setActiveView('check-in');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
+          /* Payment administration is authenticated server-side; mock localStorage admin views are hidden. */
+          <div className="py-16 sm:py-24 bg-[#10140F] min-h-screen">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="mb-8">
+                <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#D8A934]">ROYAL HILLS FEST 2026</span>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#FFF9ED] mt-2">ระบบตรวจสอบการชำระเงิน</h1>
+                <p className="text-xs sm:text-sm text-[#F3E7C8]/70 mt-2">ข้อมูลจริงจาก Supabase · ต้องเข้าสู่ระบบผู้ดูแลก่อนตรวจสอบสลิปหรือออกบัตร</p>
+              </div>
+              <PaymentReviewDashboard />
+            </div>
+          </div>
         ) : (
           /* VIEW 5: MAIN FESTIVAL HOMEPAGE */
           <div>
@@ -256,6 +256,7 @@ export default function App() {
       {/* Footer */}
       <Footer
         onNavClick={(view) => {
+          if (view === 'my-tickets') setCurrentOrder(null);
           setActiveView(view);
           if (view === 'home') {
             window.scrollTo({ top: 0, behavior: 'smooth' });

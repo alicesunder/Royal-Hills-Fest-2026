@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TicketType, Order, IssuedTicket, TicketSaleStatus } from '../types';
 import { ticketStoreService } from '../services/ticketStoreService';
+import { PaymentReviewDashboard } from './PaymentReviewDashboard';
 import {
   Ticket,
   DollarSign,
@@ -31,7 +32,7 @@ export const AdminTicketDashboard: React.FC<AdminTicketDashboardProps> = ({
   onOpenTicketPass,
   onOpenCheckInScanner,
 }) => {
-  const [tab, setTab] = useState<'OVERVIEW' | 'INVENTORY' | 'ORDERS' | 'ATTENDEES'>('OVERVIEW');
+  const [tab, setTab] = useState<'OVERVIEW' | 'INVENTORY' | 'ORDERS' | 'ATTENDEES' | 'PAYMENTS'>('OVERVIEW');
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchOrderQuery, setSearchOrderQuery] = useState('');
@@ -125,18 +126,6 @@ export const AdminTicketDashboard: React.FC<AdminTicketDashboardProps> = ({
     setEditingType(null);
     loadData();
     notify('อัปเดตการตั้งค่าคลังบัตรเรียบร้อยแล้ว');
-  };
-
-  // Payment Confirmation Action
-  const handleConfirmPayment = (orderId: string) => {
-    const res = ticketStoreService.confirmOrderPayment(orderId);
-    if (res.success) {
-      loadData();
-      if (selectedOrder && selectedOrder.id === orderId && res.order) {
-        setSelectedOrder(res.order);
-      }
-      notify(`ยืนยันการชำระเงินสำหรับ ${orderId} สำเร็จ`);
-    }
   };
 
   // Cancel Order Action
@@ -296,6 +285,16 @@ export const AdminTicketDashboard: React.FC<AdminTicketDashboardProps> = ({
             คำสั่งซื้อทั้งหมด ({orders.length})
           </button>
           <button
+            onClick={() => setTab('PAYMENTS')}
+            className={`cursor-pointer px-4 py-2 rounded-xl font-bold transition-colors whitespace-nowrap ${
+              tab === 'PAYMENTS'
+                ? 'bg-[#D8A934] text-[#10140F] shadow'
+                : 'text-[#65705A] hover:text-[#FFF9ED]'
+            }`}
+          >
+            ตรวจสอบสลิปและออกบัตร
+          </button>
+          <button
             onClick={() => setTab('ATTENDEES')}
             className={`cursor-pointer px-4 py-2 rounded-xl font-bold transition-colors whitespace-nowrap ${
               tab === 'ATTENDEES'
@@ -306,6 +305,8 @@ export const AdminTicketDashboard: React.FC<AdminTicketDashboardProps> = ({
             รายชื่อผู้เข้าร่วมและโต๊ะ VIP
           </button>
         </div>
+
+        {tab === 'PAYMENTS' && <PaymentReviewDashboard />}
 
         {/* TAB 1: OVERVIEW */}
         {tab === 'OVERVIEW' && (
@@ -631,14 +632,7 @@ export const AdminTicketDashboard: React.FC<AdminTicketDashboardProps> = ({
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
-                            {o.paymentStatus === 'PENDING' && (
-                              <button
-                                onClick={() => handleConfirmPayment(o.id)}
-                                className="cursor-pointer px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-[#FFF9ED] text-[10px] font-bold"
-                              >
-                                ยืนยันชำระ
-                              </button>
-                            )}
+
                           </div>
                         </td>
                       </tr>
