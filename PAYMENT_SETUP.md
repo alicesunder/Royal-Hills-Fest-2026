@@ -41,6 +41,8 @@ The initial database seed is deliberately **inactive**. It uses the site's exist
 - A submitted image is only a claim of payment, never proof that money arrived.
 - Admin opens the private slip link and verifies the actual transaction, amount and destination account in the bank account before approving.
 - Rejected submissions do not issue tickets. Approval transitions the order to paid and issues server-stored ticket tokens in one database transaction.
+- Rejected submissions receive a fresh 15-minute window so the buyer can submit a corrected proof.
+- Checkout shows the order number and a private lookup key. Buyers can use both to retrieve the order from another device; the lookup key must be kept private.
 - A ticket's QR is not considered checked in until the authenticated check-in endpoint validates it and marks it used.
 - Test with internal/test orders first; do not transfer real money while ticket types remain inactive.
 
