@@ -44,7 +44,9 @@ const outcomeCopy: Record<string, { title: string; body: string; style: string }
   },
 };
 
-export const SecureCheckInScanner: React.FC = () => {
+interface SecureCheckInScannerProps { initialCode?: string; }
+
+export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ initialCode }) => {
   const [email, setEmail] = useState(getCachedAdminEmail());
   const [password, setPassword] = useState('');
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -127,6 +129,12 @@ export const SecureCheckInScanner: React.FC = () => {
       setBusy(false);
     }
   }, [accessToken, stopCamera]);
+
+  useEffect(() => {
+    if (accessToken && initialCode && !scanResult && !busy) {
+      void processCode(initialCode);
+    }
+  }, [accessToken, initialCode, scanResult, busy, processCode]);
 
   const startScanningLoop = useCallback(() => {
     const scanFrame = () => {
