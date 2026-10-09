@@ -73,7 +73,7 @@ export const AboutSection: React.FC = () => {
           <div className="lg:col-span-5 lg:pt-12 about-visual-scene">
             <div className="about-photo-stack relative">
               <div className="relative rounded-[28px] overflow-hidden border border-white/10 shadow-2xl aspect-[0.82] group about-hero-photo">
-                <img src={venueImg} alt="รอยัลฮิลส์ กอล์ฟ รีสอร์ท แอนด์ สปา" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                <img src={venueImg} alt="รอยัลฮิลส์ กอล์ฟ รีสอร์ท แอนด์ สปา" loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#10140F]/95 via-[#10140F]/20 to-transparent" />
                 <div className="absolute top-5 left-5 px-3 py-1.5 rounded-full bg-[#10140F]/55 backdrop-blur-md border border-white/10 text-[9px] tracking-[0.23em] text-[#FFF9ED]/85">SARIKA · NAKHON NAYOK</div>
                 <div className="absolute bottom-6 left-6 right-6">
@@ -82,7 +82,7 @@ export const AboutSection: React.FC = () => {
                 </div>
               </div>
               <div className="about-photo-float absolute -bottom-8 -left-8 w-40 sm:w-52 rounded-2xl overflow-hidden border border-[#D8A934]/30 shadow-2xl hidden sm:block">
-                <img src={golfImg} alt="สนามกอล์ฟท่ามกลางสายหมอก" className="w-full aspect-[0.82] object-cover" />
+                <img src={golfImg} alt="สนามกอล์ฟท่ามกลางสายหมอก" loading="lazy" decoding="async" className="w-full aspect-[0.82] object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#10140F]/90 to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3 text-[9px] tracking-[0.2em] text-[#F3E7C8]/90">MORNING FAIRWAY</div>
               </div>

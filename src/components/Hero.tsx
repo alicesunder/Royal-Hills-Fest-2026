@@ -95,6 +95,8 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
             src={heroImg}
             alt="Royal Hills Fest 2026 บรรยากาศขุนเขาและกอล์ฟรีสอร์ท นครนายก"
             className="hero-image absolute inset-0 w-full h-full object-cover object-center"
+            fetchPriority="high"
+            decoding="async"
             referrerPolicy="no-referrer"
           />
         </div>

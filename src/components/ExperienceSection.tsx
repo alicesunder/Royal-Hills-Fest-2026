@@ -50,7 +50,7 @@ export const ExperienceSection: React.FC = () => {
       data-motion-scene="artists"
     >
       <div className="artist-festival-backdrop" aria-hidden="true">
-        <img src={concertBackdrop} alt="" className="artist-festival-backdrop-image" />
+        <img src={concertBackdrop} alt="" loading="lazy" decoding="async" className="artist-festival-backdrop-image" />
         <div className="artist-festival-overlay" />
         <div className="artist-festival-vignette" />
         <div className="artist-festival-grain" />
@@ -129,7 +129,7 @@ export const ExperienceSection: React.FC = () => {
                   <span className="artist-festival-figure-halo" aria-hidden="true" />
                   <span className="artist-festival-figure-beam" aria-hidden="true" />
                   <span className="artist-festival-figure-rim" aria-hidden="true" />
-                  <img src={artist.image} alt={artist.title} />
+                  <img src={artist.image} alt={artist.title} loading="lazy" decoding="async" />
                   <span className="artist-festival-figure-name">{artist.shortTitle}</span>
                 </button>
               );

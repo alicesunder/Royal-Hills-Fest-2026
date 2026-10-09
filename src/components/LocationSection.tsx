@@ -28,7 +28,7 @@ export const LocationSection: React.FC = () => {
 
         <div className="relative rounded-[30px] overflow-hidden border border-white/10 shadow-2xl location-scene-card">
           <div className="relative h-[420px] sm:h-[540px] location-hero-media">
-            <img src={venueImg} alt="Royal Hills Golf Resort and Spa" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={venueImg} alt="Royal Hills Golf Resort and Spa" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#10140F] via-[#10140F]/35 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-[#10140F]/70 via-transparent to-[#10140F]/30" />
             <div className="absolute top-5 left-5 sm:top-7 sm:left-7 flex items-center gap-2 px-3 py-2 rounded-full bg-[#10140F]/55 backdrop-blur-xl border border-white/10 text-[9px] tracking-[0.25em] text-[#FFF9ED]/85">
