@@ -626,7 +626,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               </button>
             )}
           </div>
-        )}}
+        )}
       </div>
     </section>
   );
