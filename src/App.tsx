@@ -12,7 +12,7 @@ import { TicketStore } from './components/TicketStore';
 import { TicketPreviewSection } from './components/TicketPreviewSection';
 import { CheckoutModal } from './components/CheckoutModal';
 import { MyTicketsView } from './components/MyTicketsView';
-import { CheckInScanner } from './components/CheckInScanner';
+import { SecureCheckInScanner } from './components/SecureCheckInScanner';
 import { PaymentReviewDashboard } from './components/PaymentReviewDashboard';
 import { ticketingApiService } from './services/ticketingApiService';
 import { ArrowRight, Ticket, CheckCircle2 } from 'lucide-react';
@@ -118,10 +118,7 @@ export default function App() {
           />
         ) : activeView === 'check-in' ? (
           /* VIEW 3: ON-SITE GATE CHECK-IN SCANNER */
-          <CheckInScanner
-            initialCode={checkInTargetCode}
-            onViewDashboard={() => setActiveView('admin')}
-          />
+          <SecureCheckInScanner initialCode={checkInTargetCode} />
         ) : activeView === 'admin' ? (
           /* Payment administration is authenticated server-side; mock localStorage admin views are hidden. */
           <div className="py-16 sm:py-24 bg-[#10140F] min-h-screen">
