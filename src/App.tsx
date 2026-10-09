@@ -128,7 +128,7 @@ export default function App() {
               <PaymentReviewDashboard />
             </div>
           </div>
-: (
+        ) : (
           /* VIEW 5: MAIN FESTIVAL HOMEPAGE */
           <div>
             <MotionDirector />
