@@ -46,21 +46,52 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   const [ordersError, setOrdersError] = useState('');
   const [copiedId, setCopiedId] = useState(false);
 
-  // Do not automatically fetch/show saved orders just by opening this page.
-  // Only the explicit post-checkout success flow may pass a paid order directly.
+  // Hybrid access: restore orders only from private lookup credentials saved in this browser.
+  // On a different device, no credentials are present, so the buyer must use order number + access key.
   useEffect(() => {
+    let active = true;
+    setOrdersError('');
+
     if (initialOrder?.paymentStatus === 'PAID' && initialOrder.tickets?.length > 0) {
       setOrders([initialOrder]);
       setSelectedOrderRecord(initialOrder);
       setSelectedTicket(initialOrder.tickets[0] || null);
-    } else {
-      setOrders([]);
-      setSelectedOrderRecord(null);
-      setSelectedTicket(null);
       setSelectedTicketQr('');
+      setLoadingOrders(false);
+      return () => { active = false; };
     }
-    setLoadingOrders(false);
-    setOrdersError('');
+
+    setLoadingOrders(true);
+    ticketingApiService.getSavedOrders()
+      .then((results) => {
+        if (!active) return;
+        const serverOrders = results
+          .map((item) => item.order)
+          .sort((a, b) => b.createdAt - a.createdAt);
+        setOrders(serverOrders);
+
+        // Prefer the newest paid order with a ticket; otherwise show the newest order's status.
+        const latestPaid = serverOrders.find(
+          (order) => order.paymentStatus === 'PAID' && order.tickets.length > 0
+        );
+        const wanted = latestPaid || serverOrders[0] || null;
+        setSelectedOrderRecord(wanted);
+        setSelectedTicket(wanted?.tickets?.[0] || null);
+        setSelectedTicketQr('');
+      })
+      .catch((error) => {
+        if (!active) return;
+        setOrders([]);
+        setSelectedOrderRecord(null);
+        setSelectedTicket(null);
+        setSelectedTicketQr('');
+        setOrdersError(error instanceof Error ? error.message : 'โหลดคำสั่งซื้อที่บันทึกไว้ไม่สำเร็จ');
+      })
+      .finally(() => {
+        if (active) setLoadingOrders(false);
+      });
+
+    return () => { active = false; };
   }, [initialOrder]);
 
   const handleRefreshSelectedOrder = async () => {
@@ -226,6 +257,12 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
 
         {/* Search Order / Lookup Card */}
         <div className="max-w-xl mx-auto mb-12 bg-[#182719] p-4 sm:p-5 rounded-2xl border border-[#30391E] shadow-xl no-print">
+          <div className="mb-3 rounded-xl border border-[#30391E] bg-[#182719] px-3 py-2.5">
+            <p className="text-[11px] leading-relaxed text-[#F3E7C8]/80">
+              หากเคยซื้อบัตรจากเบราว์เซอร์นี้ ระบบจะโหลดคำสั่งซื้อที่บันทึกไว้ให้อัตโนมัติ
+              หากเปลี่ยนอุปกรณ์ ให้กรอกเลขคำสั่งซื้อและรหัสติดตามส่วนตัวด้านล่าง
+            </p>
+          </div>
           <form onSubmit={handleLookup} className="space-y-2.5">
             <div className="flex gap-2">
               <div className="relative flex-1">
