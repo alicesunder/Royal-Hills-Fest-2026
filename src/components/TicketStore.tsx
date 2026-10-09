@@ -155,7 +155,15 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
         {catalogStatus !== 'available' && (
           <div role="status" className="max-w-4xl mx-auto mb-8 rounded-xl border border-[#D8A934]/40 bg-[#182719] px-4 py-4 sm:px-5">
             <p className="text-sm font-bold text-[#D8A934]">
-              {catalogStatus === 'loading' ? 'กำลังตรวจสอบสถานะจำหน่ายบัตร...' : catalogStatus === 'error' ? 'ยังเชื่อมต่อระบบจำหน่ายบัตรไม่ได้' : 'ขณะนี้ยังไม่เปิดจำหน่ายบัตรออนไลน์'}
+              {catalogStatus === 'loading'
+                ? 'กำลังตรวจสอบสถานะจำหน่ายบัตร...'
+                : catalogStatus === 'error'
+                  ? 'ยังเชื่อมต่อระบบจำหน่ายบัตรไม่ได้'
+                  : ticketTypes.every((ticket) => ticket.saleStatus === 'SOLD_OUT')
+                    ? 'บัตรทั้งสองประเภทจำหน่ายหมดแล้ว'
+                    : ticketTypes.some((ticket) => ticket.saleStatus === 'SOLD_OUT')
+                      ? 'บัตรบางประเภทจำหน่ายหมดแล้ว'
+                      : 'ขณะนี้ยังไม่เปิดจำหน่ายบัตรออนไลน์'}
             </p>
             <p className="text-xs text-[#F3E7C8]/75 mt-1 leading-relaxed">
               {catalogStatus === 'error' ? (catalogError || 'กรุณาลองใหม่ภายหลัง') : 'ระบบจะแสดงราคาและจำนวนคงเหลือจากฐานข้อมูลจริงเมื่อผู้จัดงานเปิดขาย หลังเปิดขายแล้วจึงจะสามารถสั่งซื้อและชำระเงินได้'}
@@ -227,7 +235,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       }`}
                     >
                       {isSoldOut
-                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : catalogStatus === 'closed' || isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมด'
+                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมด'
                         : `คงเหลือ ${normalTicket.remainingQuantity} ใบ`}
                     </span>
                   </div>
@@ -326,7 +334,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                           onClick={() =>
                             handleQuantityChange('tt-normal', 1, normalTicket.remainingQuantity)
                           }
-                          disabled={normalQty >= normalTicket.remainingQuantity}
+                          disabled={normalQty >= Math.min(normalTicket.remainingQuantity, normalTicket.maxPerOrder || 10)}
                           className="cursor-pointer w-10 h-10 rounded-lg bg-[#182719] hover:bg-[#30391E] disabled:opacity-30 disabled:cursor-not-allowed text-[#FFF9ED] flex items-center justify-center transition-colors active:scale-95"
                           aria-label="เพิ่มจำนวนบัตร"
                         >
@@ -435,7 +443,9 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       {!isSoldOut && vipTicket.remainingQuantity < 10 && (
                         <Flame className="w-4 h-4 text-[#C96F3D]" />
                       )}
-                      {isSoldOut ? 'โต๊ะหมดแล้ว' : `เหลือเพียง ${vipTicket.remainingQuantity} โต๊ะ`}
+                      {isSoldOut
+                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'โต๊ะ VIP หมดแล้ว'
+                        : `เหลือเพียง ${vipTicket.remainingQuantity} โต๊ะ`}
                     </span>
                   </div>
 
@@ -553,7 +563,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                           onClick={() =>
                             handleQuantityChange('tt-vip', 1, vipTicket.remainingQuantity)
                           }
-                          disabled={vipQty >= vipTicket.remainingQuantity}
+                          disabled={vipQty >= Math.min(vipTicket.remainingQuantity, vipTicket.maxPerOrder || 6)}
                           className="cursor-pointer w-10 h-10 rounded-lg bg-[#D8A934] hover:bg-[#c4982c] disabled:opacity-30 disabled:cursor-not-allowed text-[#10140F] font-bold flex items-center justify-center transition-colors active:scale-95"
                           aria-label="เพิ่มจำนวนโต๊ะ VIP"
                         >
@@ -708,7 +718,8 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
 
               <button
                 onClick={() => onProceedToCheckout(cartItems)}
-                className="cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-8 py-3.5 rounded-xl shadow-xl shadow-[#D8A934]/25 transition-all duration-200 active:scale-95"
+                disabled={!canBuyTickets || totalCartCount === 0}
+                className="cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-8 py-3.5 rounded-xl shadow-xl shadow-[#D8A934]/25 transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
               >
                 ดำเนินการสั่งซื้อ (฿{totalAmount.toLocaleString()})
                 <ArrowRight className="w-4 h-4" />
