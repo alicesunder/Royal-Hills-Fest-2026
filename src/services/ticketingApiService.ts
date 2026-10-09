@@ -78,6 +78,7 @@ function mapCustomerOrder(payload: JsonRecord): TicketingOrderResult {
     const type = itemByTypeId.get(typeId);
     const code = String(type?.code || '');
     const isVip = code === 'tt-vip';
+    const status = toTicketStatus(ticket.status);
     const attendeeRaw = Array.isArray(ticket.attendee_data) ? ticket.attendee_data : [];
     const vipAttendees: VipAttendee[] | undefined = isVip
       ? attendeeRaw.slice(0, 6).map((entry, index) => {
@@ -86,12 +87,11 @@ function mapCustomerOrder(payload: JsonRecord): TicketingOrderResult {
           return {
             seatNumber: index + 1,
             name,
-            checkedIn: false,
+            checkedIn: status === 'CHECKED_IN',
             wristbandIssued: false,
           };
         })
       : undefined;
-    const status = toTicketStatus(ticket.status);
     return {
       id: String(ticket.ticket_code || ticket.id || ''),
       orderId: String(rawOrder.order_number || ''),
