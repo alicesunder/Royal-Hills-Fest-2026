@@ -2227,7 +2227,7 @@ html{scroll-behavior:smooth}
     overflow-wrap: anywhere;
   }
 
-  .mobile-ticket-store .max-w-6xl > .absolute {
+  .mobile-ticket-store > .absolute {
     opacity: .55;
     filter: blur(80px);
   }
@@ -2306,7 +2306,7 @@ html{scroll-behavior:smooth}
     align-items: center;
   }
 
-  .mobile-sticky-cart .max-w-7xl > div:first-child .font-mono {
+  .mobile-sticky-cart .max-w-7xl > div:first-child span.font-mono {
     font-size: 19px !important;
     line-height: 1.2;
   }
