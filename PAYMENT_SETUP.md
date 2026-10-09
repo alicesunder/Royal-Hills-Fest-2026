@@ -46,6 +46,12 @@ The initial database seed is deliberately **inactive**. It uses the site's exist
 - A ticket's QR is not considered checked in until the authenticated check-in endpoint validates it and marks it used.
 - Test with internal/test orders first; do not transfer real money while ticket types remain inactive.
 
+## Gate check-in
+
+The `เช็กอินหน้างาน` page now uses the same Supabase Auth admin allowlist and verifies each scanned QR token against the database. A ticket is accepted only when its order is paid and its ticket status is still unused; repeat scans are rejected and logged. The gate scanner requires the same admin account to be enabled in `ticketing_private.admin_users`.
+
+**Current VIP limitation:** one VIP QR currently checks in the entire VIP table as one ticket. Per-seat VIP check-in and wristband issuance are not yet connected to the database scanner, so do not advertise per-seat online check-in until that workflow is built and tested.
+
 ## Ticket delivery
 
 Email delivery is not integrated yet. The buyer email is collected for order reference, but the app does not send digital tickets by email. Buyers should save the order number and private lookup key shown at checkout, then use the **บัตรของฉัน** page to retrieve the ticket after admin approval. Do not promise email delivery until an email provider and delivery workflow have been configured and tested.
