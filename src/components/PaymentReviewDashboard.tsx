@@ -34,6 +34,7 @@ type ReviewHistoryEvent = {
   tickets_issued?: number | string | null;
   note?: string | null;
   payment_reference?: string | null;
+  ticket_codes?: string[] | null;
   created_at: string;
   customer_name?: string | null;
   customer_email?: string | null;
@@ -373,6 +374,18 @@ export const PaymentReviewDashboard: React.FC = () => {
                           <p className="text-[#F3E7C8] break-all font-mono">{event.payment_reference || '—'}</p>
                         </div>
                       </div>
+                      {approved && Array.isArray(event.ticket_codes) && event.ticket_codes.length > 0 && (
+                        <div className="rounded-lg border border-[#30391E] px-3 py-3 space-y-2">
+                          <p className="text-[11px] text-[#65705A]">รหัสบัตรที่ออกจากการอนุมัตินี้</p>
+                          <div className="flex flex-wrap gap-2">
+                            {event.ticket_codes.map((ticketCode) => (
+                              <span key={ticketCode} className="rounded-md border border-emerald-700/50 bg-emerald-950/30 px-2 py-1 font-mono text-[11px] text-emerald-200">
+                                {ticketCode}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {event.note && (
                         <div className="rounded-lg border border-[#30391E] px-3 py-2 text-xs">
                           <span className="text-[#65705A]">หมายเหตุ: </span><span className="text-[#F3E7C8]">{event.note}</span>
