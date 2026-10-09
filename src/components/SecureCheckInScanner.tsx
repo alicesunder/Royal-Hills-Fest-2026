@@ -64,6 +64,7 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
   const busyRef = useRef(false);
+  const initialCodeHandledRef = useRef<string | null>(null);
 
   const stopCamera = useCallback(() => {
     if (animationRef.current !== null) {
@@ -131,10 +132,11 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
   }, [accessToken, stopCamera]);
 
   useEffect(() => {
-    if (accessToken && initialCode && !scanResult && !busy) {
+    if (accessToken && initialCode && initialCodeHandledRef.current !== initialCode) {
+      initialCodeHandledRef.current = initialCode;
       void processCode(initialCode);
     }
-  }, [accessToken, initialCode, scanResult, busy, processCode]);
+  }, [accessToken, initialCode, processCode]);
 
   const startScanningLoop = useCallback(() => {
     const scanFrame = () => {
