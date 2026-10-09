@@ -303,218 +303,149 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
 
         {/* Main Content Area */}
         {selectedTicket ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* LEFT / TICKET PASS CARD (Col 7) */}
-            <div className="lg:col-span-7 space-y-6">
-              <div
-                className={`relative rounded-3xl overflow-hidden border-2 shadow-2xl printable-ticket-card ${
-                  selectedTicket.ticketKind === 'VIP'
-                    ? 'border-[#D8A934] bg-gradient-to-b from-[#1c291b] via-[#141d14] to-[#10140F]'
-                    : 'border-[#30391E] bg-[#182719]'
-                }`}
-              >
-                {/* Physical Ticket Notches */}
-                <div className="ticket-notch-left ticket-print-hide" />
-                <div className="ticket-notch-right ticket-print-hide" />
+          <div className="rhf-ticket-page max-w-6xl mx-auto space-y-6">
+            <article className="rhf-e-ticket printable-ticket-card" aria-label={"บัตรเข้างาน " + selectedTicket.id}>
+              <div className="rhf-e-ticket-main">
+                <div className="rhf-e-ticket-eyebrows">
+                  <span>EVENT NAME</span>
+                  <span className="rhf-e-ticket-mobile-type">TICKET TYPE · {selectedTicket.ticketKind === 'VIP' ? 'VIP TABLE' : 'GENERAL ADMISSION'}</span>
+                </div>
 
-                {/* VIP Header Ribbon */}
-                {selectedTicket.ticketKind === 'VIP' && (
-                  <div className="bg-gradient-to-r from-[#D8A934] to-[#c4982c] text-[#10140F] px-6 py-2 text-xs font-bold uppercase tracking-widest flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Crown className="w-4 h-4 text-[#10140F]" />
-                      VIP TABLE PASS · 1 โต๊ะ / 6 ที่นั่ง
+                <div className="rhf-e-ticket-heading">
+                  <div className="rhf-e-ticket-brand">
+                    <h2 className="rhf-e-ticket-title">
+                      <span>ROYAL HILLS </span><span className="rhf-gold-word">FEST</span><span> 2026</span>
+                    </h2>
+                    <div className="rhf-e-ticket-gold-rule"><span /></div>
+                    <p className="rhf-e-ticket-date">14 November 2026</p>
+                    <p className="rhf-e-ticket-venue">Royal Hills Golf Resort and Spa<br />Nakhon Nayok, Thailand</p>
+                  </div>
+                  <div className="rhf-e-ticket-type-panel">
+                    <span className="rhf-e-ticket-type-label">TICKET TYPE</span>
+                    <strong>{selectedTicket.ticketKind === 'VIP' ? 'VIP TABLE PASS' : 'GENERAL ADMISSION'}</strong>
+                    <span>{selectedTicket.ticketKind === 'VIP' ? '1 Table · Up to 6 Guests' : '1 Person · Single Entry'}</span>
+                    <span className="rhf-e-ticket-paid-label">
+                      ฿{selectedTicket.ticketPrice.toLocaleString()} THB
                     </span>
-                    <span className="font-mono">{selectedTicket.tableNumber}</span>
+                  </div>
+                </div>
+
+                <div className="rhf-e-ticket-bottom">
+                  <span className="rhf-e-ticket-banner">E-TICKET</span>
+                  <span className="rhf-e-ticket-full-id">TICKET ID · {selectedTicket.id}</span>
+                </div>
+                <span className="rhf-e-ticket-shine" aria-hidden="true" />
+              </div>
+
+              <aside className="rhf-e-ticket-stub" aria-label="ตั๋วส่วน QR Code">
+                <div className="rhf-e-ticket-stub-top">
+                  <span>OFFICIAL ENTRY PASS</span>
+                  <strong>{selectedTicket.ticketKind === 'VIP' ? 'VIP' : 'ADMIT ONE'}</strong>
+                </div>
+                {selectedTicketQr ? (
+                  <div className="rhf-e-ticket-qr">
+                    <img src={selectedTicketQr} alt={"QR Code สำหรับเช็กอินบัตร " + selectedTicket.id} />
+                  </div>
+                ) : (
+                  <div className="rhf-e-ticket-qr rhf-e-ticket-qr-loading">กำลังสร้าง QR…</div>
+                )}
+                <div className="rhf-e-ticket-barcode" aria-hidden="true">
+                  <span className="rhf-barcode-guard" />
+                  {Array.from(selectedTicket.id).flatMap((character, charIndex) =>
+                    character.charCodeAt(0).toString(2).padStart(8, '0').split('').map((bit, bitIndex) => (
+                      <span
+                        key={charIndex * 8 + bitIndex}
+                        style={{ width: bit === '1' ? '2.5px' : '1px' }}
+                      />
+                    ))
+                  )}
+                  <span className="rhf-barcode-guard" />
+                </div>
+                <div className="rhf-e-ticket-reference">
+                  <span>REF:</span>
+                  <strong>{selectedTicket.id.replace(/^RHF26-/i, '').slice(-6).toUpperCase()}</strong>
+                </div>
+                <span className="rhf-e-ticket-stub-note">SCAN QR FOR VALIDATION</span>
+              </aside>
+            </article>
+
+            <div className="flex flex-wrap items-center gap-3 no-print ticket-print-hide">
+              <button
+                onClick={handlePrintTicket}
+                className="cursor-pointer py-3 px-5 rounded-xl bg-gradient-to-r from-[#F5D061] via-[#D8A934] to-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:shadow-[0_0_20px_rgba(216,169,52,0.4)] transition-all"
+                title="พิมพ์บัตรแนวนอน / บันทึกเป็น PDF"
+              >
+                <Printer className="w-4 h-4" />
+                <span>พิมพ์บัตร (Print Ticket)</span>
+              </button>
+              <button
+                onClick={handleDownloadTicketQr}
+                disabled={!selectedTicketQr}
+                className="cursor-pointer py-3 px-4 rounded-xl bg-[#182719] hover:bg-[#223624] border border-[#D8A934]/60 text-[#FFF9ED] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow transition-all disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-[#D8A934]" />
+                บันทึก QR สำหรับเช็กอิน
+              </button>
+              <button
+                onClick={handleCopyTicketCode}
+                className="cursor-pointer py-3 px-4 rounded-xl bg-[#10140F] hover:bg-[#182719] border border-[#30391E] text-[#FFF9ED] text-xs font-semibold flex items-center gap-2 transition-all"
+              >
+                {copiedId ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-[#D8A934]" />}
+                {copiedId ? 'คัดลอกรหัสแล้ว' : 'คัดลอกรหัสบัตร'}
+              </button>
+              {onSimulateCheckIn && (
+                <button
+                  onClick={() => onSimulateCheckIn(selectedTicket.id)}
+                  className="cursor-pointer py-3 px-4 rounded-xl bg-[#10140F] hover:bg-[#182719] border border-[#30391E] text-[#FFF9ED] text-xs font-semibold flex items-center gap-2 transition-all"
+                >
+                  <Shield className="w-4 h-4 text-[#D8A934]" />
+                  จำลองสแกนเช็กอิน
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              <div className="lg:col-span-7 space-y-5">
+                {selectedTicket.ticketKind === 'NORMAL' && (
+                  <div className="rounded-2xl bg-[#182719] border border-[#30391E] p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-[#65705A] block text-xs mb-1">ชื่อผู้เข้าร่วม</span>
+                      <strong className="text-[#FFF9ED]">{selectedTicket.attendeeName || parentOrder?.buyerName || '-'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[#65705A] block text-xs mb-1">เบอร์โทรศัพท์</span>
+                      <strong className="text-[#FFF9ED]">{selectedTicket.attendeePhone || parentOrder?.buyerPhone || '-'}</strong>
+                    </div>
                   </div>
                 )}
 
-                <div className="p-6 sm:p-8">
-                  {/* Top Bar */}
-                  <div className="flex items-center justify-between gap-2 pb-5 border-b border-[#30391E]">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-[#D8A934] block">
-                        ROYAL HILLS FEST 2026
+                {selectedTicket.ticketKind === 'VIP' && selectedTicket.vipAttendees && (
+                  <div className="rounded-2xl bg-[#182719] border border-[#D8A934]/40 p-5 space-y-3">
+                    <div className="flex items-center justify-between gap-3 pb-2 border-b border-[#30391E]">
+                      <span className="font-display text-sm font-bold text-[#FFF9ED] flex items-center gap-2">
+                        <Users className="w-4 h-4 text-[#D8A934]" />
+                        รายชื่อผู้เข้าร่วมโต๊ะ VIP
                       </span>
-                      <h2 className="font-display text-2xl font-bold text-[#FFF9ED] mt-0.5">
-                        {selectedTicket.ticketKind === 'VIP'
-                          ? `${selectedTicket.tableNumber || 'VIP โต๊ะ'} (${selectedTicket.id})`
-                          : selectedTicket.ticketTypeName}
-                      </h2>
-                    </div>
-
-                    <div className="text-right">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-mono font-bold ${
-                          selectedTicket.status === 'WRISTBAND_ISSUED'
-                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
-                            : selectedTicket.status === 'CHECKED_IN'
-                            ? 'bg-amber-950 text-amber-300 border border-amber-700'
-                            : 'bg-[#10140F] text-[#D8A934] border border-[#30391E]'
-                        }`}
-                      >
-                        {selectedTicket.status === 'WRISTBAND_ISSUED'
-                          ? 'รับริสแบนด์แล้ว'
-                          : selectedTicket.status === 'CHECKED_IN'
-                          ? 'เช็กอินแล้ว'
-                          : 'บัตรพร้อมเข้างาน'}
+                      <span className="text-xs font-mono text-[#D8A934]">
+                        เช็กอินแล้ว: {selectedTicket.vipAttendees.filter((attendee) => attendee.checkedIn).length} / 6
                       </span>
                     </div>
-                  </div>
-
-                  {/* QR Code Presentation */}
-                  <div className="py-8 text-center bg-[#10140F]/90 my-6 rounded-2xl border border-[#30391E] shadow-inner">
-                    <span className="text-[10px] uppercase tracking-widest text-[#65705A] block mb-3 font-mono">
-                      {selectedTicket.ticketKind === 'VIP'
-                        ? 'OFFICIAL VIP TABLE QR CODE'
-                        : 'OFFICIAL ENTRANCE QR CODE'}
-                    </span>
-
-                    {selectedTicketQr ? (
-                      <div className="p-4 bg-white rounded-2xl inline-block shadow-2xl">
-                        <img
-                          src={selectedTicketQr}
-                          alt="Ticket QR Code"
-                          className="w-56 h-56 mx-auto"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-56 h-56 mx-auto bg-[#182719] rounded-2xl flex items-center justify-center text-xs text-[#65705A]">
-                        กำลังสร้าง QR Code...
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex items-center justify-center gap-2">
-                      <span className="font-mono text-sm font-bold text-[#FFF9ED]">
-                        {selectedTicket.id}
-                      </span>
-                      <button
-                        onClick={handleCopyTicketCode}
-                        className="cursor-pointer text-[#65705A] hover:text-[#FFF9ED] p-1"
-                        title="คัดลอกรหัสบัตร"
-                      >
-                        {copiedId ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-
-                    <p className="text-[11px] text-[#65705A] mt-1 font-mono">
-                      Secure Token: {selectedTicket.qrToken.slice(-10)}
-                    </p>
-                  </div>
-
-                  {/* VIP TABLE ROSTER VIEW (If VIP Table) */}
-                  {selectedTicket.ticketKind === 'VIP' && selectedTicket.vipAttendees && (
-                    <div className="mb-6 p-5 rounded-2xl bg-[#10140F] border border-[#D8A934]/40 space-y-3">
-                      <div className="flex items-center justify-between pb-2 border-b border-[#30391E]">
-                        <span className="font-display text-sm font-bold text-[#FFF9ED] flex items-center gap-2">
-                          <Users className="w-4 h-4 text-[#D8A934]" />
-                          รายชื่อผู้เข้าร่วมโต๊ะ VIP (6 ที่นั่ง)
-                        </span>
-                        <span className="text-xs font-mono text-[#D8A934]">
-                          เช็กอินแล้ว:{' '}
-                          {selectedTicket.vipAttendees.filter((a) => a.checkedIn).length} / 6
-                        </span>
-                      </div>
-
-                      <div className="space-y-2 text-xs">
-                        {selectedTicket.vipAttendees.map((att) => (
-                          <div
-                            key={att.seatNumber}
-                            className="flex items-center justify-between p-2.5 rounded-lg bg-[#182719] border border-[#30391E]"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-[#10140F] border border-[#D8A934]/60 text-[#D8A934] font-mono text-[10px] flex items-center justify-center font-bold">
-                                {att.seatNumber}
-                              </span>
-                              <span className="font-medium text-[#FFF9ED]">
-                                {att.name || `ผู้เข้าร่วมคนที่ ${att.seatNumber}`}
-                              </span>
-                            </div>
-                            <span
-                              className={`font-mono text-[11px] ${
-                                att.wristbandIssued
-                                  ? 'text-emerald-400'
-                                  : att.checkedIn
-                                  ? 'text-amber-400'
-                                  : 'text-[#65705A]'
-                              }`}
-                            >
-                              {att.wristbandIssued
-                                ? 'รับริสแบนด์แล้ว'
-                                : att.checkedIn
-                                ? 'เช็กอินแล้ว'
-                                : 'ยังไม่เช็กอิน'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* NORMAL TICKET ATTENDEE DETAILS */}
-                  {selectedTicket.ticketKind === 'NORMAL' && (
-                    <div className="grid grid-cols-2 gap-4 text-xs py-3 border-y border-[#30391E] mb-6">
-                      <div>
-                        <span className="text-[#65705A] block">ชื่อผู้เข้าร่วม:</span>
-                        <strong className="text-[#FFF9ED] text-sm">{selectedTicket.attendeeName}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[#65705A] block">เบอร์โทรศัพท์:</span>
-                        <strong className="text-[#FFF9ED] text-sm">
-                          {selectedTicket.attendeePhone || '-'}
-                        </strong>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Event Details */}
-                  <div className="space-y-2 text-xs text-[#F3E7C8]/85">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-[#D8A934]" />
-                      <span>วันเสาร์ที่ 14 พฤศจิกายน 2569 (ประตูเปิด 07:30 น.)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-[#C96F3D]" />
-                      <span>รอยัลฮิลส์ กอล์ฟ รีสอร์ท แอนด์ สปา นครนายก</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {selectedTicket.vipAttendees.map((attendee) => (
+                        <div key={attendee.seatNumber} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[#10140F] border border-[#30391E] text-xs">
+                          <span className="text-[#F3E7C8]">
+                            <span className="text-[#D8A934] font-mono mr-2">{String(attendee.seatNumber).padStart(2, '0')}</span>
+                            {attendee.name || 'ผู้เข้าร่วมคนที่ ' + attendee.seatNumber}
+                          </span>
+                          <span className={attendee.checkedIn ? 'text-emerald-300' : 'text-[#65705A]'}>
+                            {attendee.wristbandIssued ? 'รับริสแบนด์แล้ว' : attendee.checkedIn ? 'เช็กอินแล้ว' : 'ยังไม่เช็กอิน'}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="mt-8 pt-4 border-t border-[#30391E] flex flex-wrap items-center gap-3 ticket-print-hide">
-                    <button
-                      onClick={handlePrintTicket}
-                      className="cursor-pointer py-3 px-5 rounded-xl bg-gradient-to-r from-[#F5D061] via-[#D8A934] to-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:shadow-[0_0_20px_rgba(216,169,52,0.4)] transition-all"
-                      title="พิมพ์บัตรเข้างาน / บันทึกเป็น PDF"
-                    >
-                      <Printer className="w-4 h-4 text-[#10140F]" />
-                      <span>พิมพ์บัตร (Print Ticket)</span>
-                    </button>
-
-                    <button
-                      onClick={handleDownloadTicketQr}
-                      className="cursor-pointer flex-1 py-3 px-4 rounded-xl bg-[#182719] hover:bg-[#223624] border border-[#D8A934]/60 text-[#FFF9ED] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow transition-all"
-                    >
-                      <Download className="w-4 h-4 text-[#D8A934]" />
-                      บันทึกภาพ QR Code
-                    </button>
-
-                    {onSimulateCheckIn && (
-                      <button
-                        onClick={() => onSimulateCheckIn(selectedTicket.id)}
-                        className="cursor-pointer py-3 px-4 rounded-xl bg-[#10140F] hover:bg-[#182719] border border-[#30391E] text-[#FFF9ED] text-xs font-semibold flex items-center gap-2 transition-all"
-                      >
-                        <Shield className="w-4 h-4 text-[#D8A934]" />
-                        จำลองสแกนเช็กอินที่เกต
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
-            </div>
-
             {/* RIGHT: TICKET SWITCHER & ORDER SUMMARY (Col 5) */}
             <div className="lg:col-span-5 space-y-6 no-print">
               {/* Order Info Card */}
@@ -600,6 +531,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                 </div>
               )}
             </div>
+          </div>
           </div>
         ) : selectedOrderRecord ? (
           <div className="max-w-2xl mx-auto rounded-2xl border border-[#D8A934]/35 bg-[#182719] p-6 sm:p-8 space-y-5">
