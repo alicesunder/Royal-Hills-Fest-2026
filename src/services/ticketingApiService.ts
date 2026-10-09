@@ -247,6 +247,7 @@ export const ticketingApiService = {
       const sold = Math.max(0, Number(inventory.quantity_sold ?? 0));
       const reserved = Math.max(0, Number(inventory.quantity_reserved ?? 0));
       const remaining = Math.max(0, capacity - sold - reserved);
+      const isSoldOut = capacity > 0 && sold + reserved >= capacity;
       const now = Date.now();
       const startsAt = item.sales_start_at ? Date.parse(String(item.sales_start_at)) : null;
       const endsAt = item.sales_end_at ? Date.parse(String(item.sales_end_at)) : null;
@@ -261,7 +262,7 @@ export const ticketingApiService = {
         totalQuantity: capacity,
         soldQuantity: sold,
         remainingQuantity: remaining,
-        saleStatus: remaining > 0 && withinWindow ? 'ACTIVE' : 'CLOSED',
+        saleStatus: isSoldOut ? 'SOLD_OUT' : remaining > 0 && withinWindow ? 'ACTIVE' : 'CLOSED',
       };
     }).filter((item): item is TicketType => item !== null);
   },
