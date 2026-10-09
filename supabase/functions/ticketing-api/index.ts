@@ -311,6 +311,29 @@ async function adminQueue(request: Request) {
   return { orders, adminEmail: admin.email };
 }
 
+async function checkInTicket(request: Request, body: JsonObject) {
+  const admin = await requireAdmin(request);
+  const qrToken = text(body.qrToken, 256);
+  const requestId = text(body.requestId, 64);
+  const scannerDeviceId = text(body.scannerDeviceId, 100);
+  const scanLocation = text(body.scanLocation, 150);
+
+  if (qrToken.length < 24 || qrToken.length > 256) {
+    throw new ApiError(400, "QR บัตรไม่ถูกต้อง");
+  }
+  if (requestId && !/^[0-9a-f-]{36}$/i.test(requestId)) {
+    throw new ApiError(400, "รหัสคำขอสแกนไม่ถูกต้อง");
+  }
+
+  return await rpc("ticketing_check_in", {
+    p_qr_token_hash: await hashHex(qrToken),
+    p_scanned_by: admin.id,
+    p_scanner_device_id: scannerDeviceId || null,
+    p_scan_location: scanLocation || null,
+    p_request_id: requestId || crypto.randomUUID(),
+  });
+}
+
 async function reviewOrder(request: Request, body: JsonObject) {
   const admin = await requireAdmin(request);
   const orderId = text(body.orderId, 64);
@@ -375,6 +398,9 @@ Deno.serve(async (request: Request) => {
         break;
       case "admin-review":
         result = await reviewOrder(request, body);
+        break;
+      case "check-in":
+        result = await checkInTicket(request, body);
         break;
       default:
         throw new ApiError(400, "ไม่รู้จักคำสั่งที่ร้องขอ");
