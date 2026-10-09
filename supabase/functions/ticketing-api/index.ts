@@ -314,14 +314,14 @@ async function adminQueue(request: Request) {
 async function reviewOrder(request: Request, body: JsonObject) {
   const admin = await requireAdmin(request);
   const orderId = text(body.orderId, 64);
-  const action = text(body.action, 16);
+  const reviewAction = text(body.reviewAction, 16);
   const note = text(body.note, 500);
-  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !["approve", "reject"].includes(action)) {
+  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !["approve", "reject"].includes(reviewAction)) {
     throw new ApiError(400, "คำขอตรวจสอบรายการไม่ถูกต้อง");
   }
   return await rpc("ticketing_review_order", {
     p_order_id: orderId,
-    p_action: action,
+    p_action: reviewAction,
     p_reviewer_id: admin.id,
     p_note: note || null,
   });
