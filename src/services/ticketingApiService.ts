@@ -154,6 +154,30 @@ async function invoke(action: string, body: JsonRecord) {
 }
 
 export const ticketingApiService = {
+  async checkInTicket(accessToken: string, qrToken: string, scannerDeviceId = 'gate-1'): Promise<JsonRecord> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'check-in',
+        qrToken,
+        requestId: crypto.randomUUID(),
+        scannerDeviceId,
+        scanLocation: 'ROYAL HILLS GATE 1',
+      }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'ตรวจสอบ QR บัตรไม่สำเร็จ');
+    }
+    return (payload.data || {}) as JsonRecord;
+  },
+
   async getPaymentReviewQueue(accessToken: string): Promise<JsonRecord[]> {
     assertConfigured();
     const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
