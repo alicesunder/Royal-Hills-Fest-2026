@@ -30,7 +30,8 @@ type JsonRecord = Record<string, unknown>;
 
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
 const SUPABASE_PUBLISHABLE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '');
-export const PROMPTPAY_QR_URL = String(import.meta.env.VITE_PROMPTPAY_QR_URL || '');
+// The static QR preserves the original PromptPay payload decoded from the user's supplied SCB image.
+export const PROMPTPAY_QR_URL = String(import.meta.env.VITE_PROMPTPAY_QR_URL || '/promptpay-qr.svg');
 
 function assertConfigured() {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
