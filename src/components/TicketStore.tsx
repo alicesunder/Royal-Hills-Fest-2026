@@ -165,6 +165,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
               ========================================= */}
           {normalTicket && (() => {
             const isSoldOut = !canBuyTickets || normalTicket.remainingQuantity <= 0 || normalTicket.saleStatus !== 'ACTIVE';
+            const isNotOnSale = normalTicket.saleStatus === 'CLOSED';
             const isHovered = hoveredCardId === normalTicket.id;
             const pos = cardMousePos[normalTicket.id] || { x: 0, y: 0 };
             const rotateX = isHovered ? -pos.y * 12 : 0;
@@ -221,7 +222,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       }`}
                     >
                       {isSoldOut
-                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : catalogStatus === 'closed' ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมด'
+                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : catalogStatus === 'closed' || isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมด'
                         : `คงเหลือ ${normalTicket.remainingQuantity} ใบ`}
                     </span>
                   </div>
@@ -242,7 +243,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       </span>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="font-mono text-4xl font-bold text-[#FFF9ED] tabular-nums">
-                          ฿555
+                          ฿{normalTicket.price.toLocaleString()}
                         </span>
                         <span className="text-xs text-[#65705A] font-mono">THB</span>
                       </div>
@@ -284,14 +285,14 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       disabled
                       className="w-full py-4 rounded-xl bg-[#30391E]/40 border border-[#30391E] text-[#65705A] text-xs font-bold uppercase tracking-wider cursor-not-allowed"
                     >
-                      {catalogStatus === 'loading' ? 'กำลังตรวจสอบสถานะการขาย...' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม · กรุณาลองใหม่ภายหลัง' : catalogStatus === 'closed' ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมดแล้ว (Sold Out)'}
+                      {catalogStatus === 'loading' ? 'กำลังตรวจสอบสถานะการขาย...' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม · กรุณาลองใหม่ภายหลัง' : catalogStatus === 'closed' || isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมดแล้ว (Sold Out)'}
                     </button>
                   ) : (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs font-semibold text-[#F3E7C8]/90 px-1">
                         <span>จำนวนบัตร:</span>
                         <span className="text-[11px] text-[#65705A] font-mono font-normal">
-                          1 ใบ = 555 บาท
+                          1 ใบ = {normalTicket.price.toLocaleString()} บาท
                         </span>
                       </div>
 
@@ -332,7 +333,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                         <div className="flex items-center justify-between text-xs px-2 py-2 bg-[#182719] rounded-lg border border-[#30391E]">
                           <span className="text-[#65705A]">ยอดรวมบัตรปกติ ({normalQty} ใบ):</span>
                           <span className="font-mono font-bold text-[#FFF9ED]">
-                            ฿{(normalQty * 555).toLocaleString()} THB
+                            ฿{(normalQty * normalTicket.price).toLocaleString()} THB
                           </span>
                         </div>
                       ) : (
@@ -356,6 +357,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
               ========================================= */}
           {vipTicket && (() => {
             const isSoldOut = !canBuyTickets || vipTicket.remainingQuantity <= 0 || vipTicket.saleStatus !== 'ACTIVE';
+            const isNotOnSale = vipTicket.saleStatus === 'CLOSED';
             const isHovered = hoveredCardId === vipTicket.id;
             const pos = cardMousePos[vipTicket.id] || { x: 0, y: 0 };
             const rotateX = isHovered ? -pos.y * 12 : 0;
@@ -463,7 +465,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       </span>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="font-mono text-4xl font-bold text-[#D8A934] tabular-nums">
-                          ฿5,555
+                          ฿{vipTicket.price.toLocaleString()}
                         </span>
                         <span className="text-xs text-[#65705A] font-mono">THB</span>
                       </div>
@@ -512,7 +514,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       <div className="flex items-center justify-between text-xs font-semibold text-[#D8A934] px-1">
                         <span>จำนวนโต๊ะ VIP:</span>
                         <span className="text-[11px] text-[#F3E7C8]/80 font-mono font-normal">
-                          1 โต๊ะ = 5,555 บาท (6 ที่นั่ง)
+                          1 โต๊ะ = {vipTicket.price.toLocaleString()} บาท (6 ที่นั่ง)
                         </span>
                       </div>
 
@@ -558,7 +560,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                         <div className="flex items-center justify-between text-xs px-2 py-2 bg-[#182719] rounded-lg border border-[#D8A934]/40">
                           <span className="text-[#D8A934]">ยอดรวมโต๊ะ VIP ({vipQty} โต๊ะ):</span>
                           <span className="font-mono font-bold text-[#D8A934] text-sm">
-                            ฿{(vipQty * 5555).toLocaleString()} THB
+                            ฿{(vipQty * vipTicket.price).toLocaleString()} THB
                           </span>
                         </div>
                       ) : (
@@ -590,20 +592,20 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
               {normalQty > 0 && (
                 <div className="flex items-center justify-between py-1.5">
                   <span className="text-[#F3E7C8]/90">
-                    บัตรปกติ × {normalQty} ใบ (555 บาท / คน)
+                    บัตรปกติ × {normalQty} ใบ ({normalTicket?.price.toLocaleString() || 555} บาท / คน)
                   </span>
                   <span className="font-mono font-bold text-[#FFF9ED]">
-                    ฿{(normalQty * 555).toLocaleString()} บาท
+                    ฿{(normalQty * normalTicket.price).toLocaleString()} บาท
                   </span>
                 </div>
               )}
               {vipQty > 0 && (
                 <div className="flex items-center justify-between py-1.5">
                   <span className="text-[#D8A934]">
-                    บัตร VIP × {vipQty} โต๊ะ (5,555 บาท / โต๊ะ · {vipQty * 6} ที่นั่ง)
+                    บัตร VIP × {vipQty} โต๊ะ ({vipTicket?.price.toLocaleString() || 5555} บาท / โต๊ะ · {vipQty * 6} ที่นั่ง)
                   </span>
                   <span className="font-mono font-bold text-[#D8A934]">
-                    ฿{(vipQty * 5555).toLocaleString()} บาท
+                    ฿{(vipQty * vipTicket.price).toLocaleString()} บาท
                   </span>
                 </div>
               )}
