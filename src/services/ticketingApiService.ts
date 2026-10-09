@@ -253,7 +253,12 @@ export const ticketingApiService = {
       const endsAt = item.sales_end_at ? Date.parse(String(item.sales_end_at)) : null;
       const withinWindow = (startsAt === null || startsAt <= now) && (endsAt === null || endsAt > now);
 
-      return {
+      const saleStatus: TicketType['saleStatus'] = isSoldOut
+        ? 'SOLD_OUT'
+        : remaining > 0 && withinWindow
+          ? 'ACTIVE'
+          : 'CLOSED';
+      const catalogItem: TicketType = {
         ...template,
         name: String(item.name || template.name),
         description: String(item.description || template.description),
@@ -262,8 +267,9 @@ export const ticketingApiService = {
         totalQuantity: capacity,
         soldQuantity: sold,
         remainingQuantity: remaining,
-        saleStatus: isSoldOut ? 'SOLD_OUT' : remaining > 0 && withinWindow ? 'ACTIVE' : 'CLOSED',
+        saleStatus,
       };
+      return catalogItem;
     }).filter((item): item is TicketType => item !== null);
   },
 
