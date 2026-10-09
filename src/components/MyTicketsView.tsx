@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { Order, IssuedTicket } from '../types';
-import { ticketStoreService } from '../services/ticketStoreService';
+import { ticketingApiService } from '../services/ticketingApiService';
 import {
   Ticket,
   Search,
@@ -19,6 +19,7 @@ import {
   Crown,
   Users,
   Printer,
+  RefreshCw,
 } from 'lucide-react';
 
 interface MyTicketsViewProps {
@@ -34,28 +35,72 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
 }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<IssuedTicket | null>(null);
+  const [selectedOrderRecord, setSelectedOrderRecord] = useState<Order | null>(null);
   const [selectedTicketQr, setSelectedTicketQr] = useState<string>('');
   const [lookupQuery, setLookupQuery] = useState('');
   const [lookupError, setLookupError] = useState('');
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [refreshingOrder, setRefreshingOrder] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
   const [copiedId, setCopiedId] = useState(false);
 
-  // Load orders on mount
+  // Load orders from Supabase using the private lookup credentials stored at checkout.
   useEffect(() => {
-    const allOrders = ticketStoreService.getOrders();
-    setOrders(allOrders);
+    let active = true;
+    setLoadingOrders(true);
+    setOrdersError('');
 
-    if (initialOrder && initialOrder.tickets.length > 0) {
-      setSelectedTicket(initialOrder.tickets[0]);
-    } else {
-      const lastId = ticketStoreService.getLastOrderId();
-      const lastOrder = lastId ? ticketStoreService.getOrderById(lastId) : null;
-      if (lastOrder && lastOrder.tickets.length > 0) {
-        setSelectedTicket(lastOrder.tickets[0]);
-      } else if (allOrders.length > 0 && allOrders[0].tickets.length > 0) {
-        setSelectedTicket(allOrders[0].tickets[0]);
-      }
-    }
+    ticketingApiService.getSavedOrders()
+      .then((results) => {
+        if (!active) return;
+        const serverOrders = results.map((item) => item.order)
+          .sort((a, b) => b.createdAt - a.createdAt);
+        setOrders(serverOrders);
+
+        const wanted = initialOrder
+          ? serverOrders.find((order) => order.id === initialOrder.id) || initialOrder
+          : serverOrders[0] || null;
+
+        setSelectedOrderRecord(wanted);
+        const ticket = wanted?.tickets?.[0]
+          || serverOrders.find((order) => order.paymentStatus === 'PAID' && order.tickets.length > 0)?.tickets[0]
+          || null;
+        setSelectedTicket(ticket);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setOrdersError(error instanceof Error ? error.message : 'โหลดคำสั่งซื้อไม่สำเร็จ');
+      })
+      .finally(() => {
+        if (active) setLoadingOrders(false);
+      });
+
+    return () => { active = false; };
   }, [initialOrder]);
+
+  const handleRefreshSelectedOrder = async () => {
+    if (!selectedOrderRecord) return;
+    const credential = ticketingApiService.getSavedCredentials()
+      .find((item) => item.orderNumber === selectedOrderRecord.id);
+    if (!credential) {
+      setOrdersError('ไม่พบรหัสติดตามคำสั่งซื้อในอุปกรณ์นี้ กรุณาใช้ข้อมูลคำสั่งซื้อเดิม');
+      return;
+    }
+
+    setRefreshingOrder(true);
+    setOrdersError('');
+    try {
+      const result = await ticketingApiService.getOrder(credential.orderNumber, credential.lookupToken);
+      const refreshed = result.order;
+      setOrders((previous) => [refreshed, ...previous.filter((order) => order.id !== refreshed.id)]);
+      setSelectedOrderRecord(refreshed);
+      setSelectedTicket(refreshed.tickets[0] || null);
+    } catch (error) {
+      setOrdersError(error instanceof Error ? error.message : 'ตรวจสอบสถานะไม่สำเร็จ');
+    } finally {
+      setRefreshingOrder(false);
+    }
+  };
 
   // Generate QR for selected ticket
   useEffect(() => {
@@ -78,35 +123,43 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
     setLookupError('');
     const query = lookupQuery.trim();
     if (!query) {
-      setLookupError('กรุณากรอกเลขที่คำสั่งซื้อ, อีเมล หรือรหัสบัตร/โต๊ะ');
+      setLookupError('กรุณากรอกเลขคำสั่งซื้อ อีเมล หรือรหัสบัตร/โต๊ะ');
       return;
     }
 
-    // Try finding by Order ID
-    const byOrder = ticketStoreService.getOrderById(query);
-    if (byOrder && byOrder.tickets.length > 0) {
-      setSelectedTicket(byOrder.tickets[0]);
+    const normalized = query.toLowerCase();
+    const byOrder = orders.find((order) => order.id.toLowerCase() === normalized);
+    if (byOrder) {
+      setSelectedOrderRecord(byOrder);
+      setSelectedTicket(byOrder.tickets[0] || null);
       setLookupQuery('');
       return;
     }
 
-    // Try finding by Ticket ID
-    const byTicket = ticketStoreService.getTicketByIdOrToken(query);
-    if (byTicket) {
-      setSelectedTicket(byTicket.ticket);
+    const ticketOwner = orders.find((order) =>
+      order.tickets.some((ticket) =>
+        ticket.id.toLowerCase() === normalized || ticket.qrToken.toLowerCase() === normalized
+      )
+    );
+    if (ticketOwner) {
+      const ticket = ticketOwner.tickets.find((item) =>
+        item.id.toLowerCase() === normalized || item.qrToken.toLowerCase() === normalized
+      ) || null;
+      setSelectedOrderRecord(ticketOwner);
+      setSelectedTicket(ticket);
       setLookupQuery('');
       return;
     }
 
-    // Try finding by Buyer Email
-    const byEmail = ticketStoreService.getOrdersByEmail(query);
-    if (byEmail.length > 0 && byEmail[0].tickets.length > 0) {
-      setSelectedTicket(byEmail[0].tickets[0]);
+    const byEmail = orders.find((order) => order.buyerEmail.toLowerCase() === normalized);
+    if (byEmail) {
+      setSelectedOrderRecord(byEmail);
+      setSelectedTicket(byEmail.tickets[0] || null);
       setLookupQuery('');
       return;
     }
 
-    setLookupError(`ไม่พบข้อมูลคำสั่งซื้อหรือบัตรสำหรับ "${query}" กรุณาตรวจสอบอีกครั้ง`);
+    setLookupError('ไม่พบคำสั่งซื้อในอุปกรณ์นี้ กรุณาใช้เลขคำสั่งซื้อหรือเปิดจากอุปกรณ์ที่ใช้สั่งซื้อ');
   };
 
   const handleCopyTicketCode = () => {
@@ -132,8 +185,8 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
 
   // Find parent order of the selected ticket
   const parentOrder = selectedTicket
-    ? orders.find((o) => o.id === selectedTicket.orderId)
-    : null;
+    ? orders.find((o) => o.id === selectedTicket.orderId) || selectedOrderRecord
+    : selectedOrderRecord;
 
   const allTicketsList = orders.flatMap((o) => o.tickets);
 
@@ -477,15 +530,93 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               )}
             </div>
           </div>
+        ) : selectedOrderRecord ? (
+          <div className="max-w-2xl mx-auto rounded-2xl border border-[#D8A934]/35 bg-[#182719] p-6 sm:p-8 space-y-5">
+            <div className="text-center">
+              <Clock className="w-10 h-10 text-[#D8A934] mx-auto mb-3" />
+              <p className="text-xs uppercase tracking-widest text-[#D8A934]">ORDER STATUS</p>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-[#FFF9ED] mt-2">
+                คำสั่งซื้อ {selectedOrderRecord.id}
+              </h3>
+              <p className="text-3xl font-bold text-[#D8A934] mt-3">
+                ฿{selectedOrderRecord.totalAmount.toLocaleString()} <span className="text-xs text-[#65705A]">THB</span>
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-[#30391E] bg-[#10140F] p-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[#65705A]">สถานะคำสั่งซื้อ</span>
+                <span className={selectedOrderRecord.paymentStatus === 'PAID' ? 'font-bold text-emerald-300' : selectedOrderRecord.paymentStatus === 'VERIFYING' ? 'font-bold text-amber-300' : 'font-bold text-[#F3E7C8]'}>
+                  {selectedOrderRecord.paymentStatus === 'PAID' ? 'ชำระแล้ว · ออกบัตรแล้ว' :
+                   selectedOrderRecord.paymentStatus === 'VERIFYING' ? 'ส่งสลิปแล้ว · รอตรวจสอบ' :
+                   selectedOrderRecord.paymentStatus === 'FAILED' ? 'หมดอายุหรือไม่สำเร็จ' :
+                   selectedOrderRecord.paymentStatus === 'CANCELLED' ? 'ยกเลิกคำสั่งซื้อ' : 'รอชำระเงิน'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[#65705A]">ผู้สั่งซื้อ</span>
+                <span className="text-[#FFF9ED] text-right">{selectedOrderRecord.buyerName}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[#65705A]">อีเมล</span>
+                <span className="text-[#FFF9ED] text-right break-all">{selectedOrderRecord.buyerEmail}</span>
+              </div>
+              {selectedOrderRecord.paymentStatus === 'VERIFYING' && (
+                <p className="text-xs text-amber-200 pt-2">
+                  เจ้าหน้าที่กำลังตรวจสอบยอดเงินจริงในบัญชี บัตรจะปรากฏหลังอนุมัติแล้วเท่านั้น
+                </p>
+              )}
+              {selectedOrderRecord.paymentStatus === 'PENDING' && (
+                <p className="text-xs text-[#F3E7C8]/75 pt-2">
+                  คำสั่งซื้อยังรอการชำระเงิน กรุณากลับไปยังขั้นตอนชำระเงินหรือใช้รหัสติดตามที่บันทึกไว้
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleRefreshSelectedOrder()}
+              disabled={refreshingOrder}
+              className="w-full rounded-xl bg-[#D8A934] px-4 py-3 text-sm font-bold text-[#10140F] flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={refreshingOrder ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
+              {refreshingOrder ? 'กำลังตรวจสอบ...' : 'ตรวจสอบสถานะล่าสุด'}
+            </button>
+          </div>
         ) : (
           <div className="text-center py-16 bg-[#182719] rounded-2xl border border-[#30391E] max-w-xl mx-auto p-8 space-y-4">
-            <Ticket className="w-12 h-12 text-[#65705A] mx-auto" />
+            {loadingOrders ? (
+              <RefreshCw className="w-12 h-12 text-[#D8A934] mx-auto animate-spin" />
+            ) : (
+              <Ticket className="w-12 h-12 text-[#65705A] mx-auto" />
+            )}
             <h3 className="font-display text-xl font-bold text-[#FFF9ED]">
-              ยังไม่พบบัตรเข้างานในระบบ
+              {loadingOrders ? 'กำลังโหลดคำสั่งซื้อ...' : 'ยังไม่พบบัตรเข้างานในระบบ'}
             </h3>
             <p className="text-xs text-[#F3E7C8]/75">
-              หากท่านได้สั่งซื้อบัตรแล้ว กรุณากรอกเลขคำสั่งซื้อหรืออีเมลในช่องค้นหาด้านบน
+              {ordersError || 'เมื่อชำระเงินและเจ้าหน้าที่อนุมัติแล้ว บัตรดิจิทัลจะปรากฏในหน้านี้'}
             </p>
+            {orders.length > 0 && (
+              <div className="text-left pt-2 space-y-2">
+                <p className="text-xs font-bold text-[#D8A934]">คำสั่งซื้อที่บันทึกไว้ในอุปกรณ์นี้</p>
+                {orders.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedOrderRecord(order);
+                      setSelectedTicket(order.tickets[0] || null);
+                    }}
+                    className="w-full rounded-xl border border-[#30391E] bg-[#10140F] px-4 py-3 text-left flex items-center justify-between gap-3"
+                  >
+                    <span>
+                      <span className="block text-xs font-bold text-[#FFF9ED]">{order.id}</span>
+                      <span className="block text-[11px] text-[#65705A]">{order.paymentStatus === 'VERIFYING' ? 'รอตรวจสอบสลิป' : order.paymentStatus === 'PAID' ? 'ชำระแล้ว' : 'รอชำระเงิน'}</span>
+                    </span>
+                    <span className="text-xs font-bold text-[#D8A934]">฿{order.totalAmount.toLocaleString()}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {onBuyMoreTickets && (
               <button
                 onClick={onBuyMoreTickets}
@@ -495,7 +626,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               </button>
             )}
           </div>
-        )}
+        )}}
       </div>
     </section>
   );
