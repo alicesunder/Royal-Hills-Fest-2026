@@ -311,8 +311,29 @@ async function adminQueue(request: Request) {
         body: JSON.stringify({ expiresIn: 300 }),
       });
       const signedData = await responseJson(signed) as { signedURL?: string; signedUrl?: string } | null;
-      if (signed.ok && (signedData?.signedURL || signedData?.signedUrl)) {
-        proofUrl = new URL(signedData.signedURL || signedData.signedUrl || "", root).toString();
+      const rawSignedPath = signedData?.signedURL || signedData?.signedUrl || "";
+      if (signed.ok && rawSignedPath) {
+        // Supabase Storage returns paths such as /object/sign/<bucket>/<path>?token=...
+        // The SDK's storage base normally adds /storage/v1; when constructing a URL
+        // manually, add that prefix or Storage responds with "requested path is invalid".
+        if (/^https?:\/\//i.test(rawSignedPath)) {
+          const absolute = new URL(rawSignedPath);
+          const expectedOrigin = new URL(root).origin;
+          if (absolute.origin === expectedOrigin && absolute.pathname.startsWith("/storage/v1/object/sign/")) {
+            proofUrl = absolute.toString();
+          }
+        } else {
+          const normalizedPath = rawSignedPath.startsWith("/storage/v1/")
+            ? rawSignedPath
+            : rawSignedPath.startsWith("/object/")
+              ? "/storage/v1" + rawSignedPath
+              : rawSignedPath.startsWith("object/")
+                ? "/storage/v1/" + rawSignedPath
+                : "";
+          if (normalizedPath.startsWith("/storage/v1/object/sign/")) {
+            proofUrl = new URL(normalizedPath, root).toString();
+          }
+        }
       }
     }
     const sanitized = { ...row };
