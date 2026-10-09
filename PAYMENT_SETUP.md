@@ -46,6 +46,10 @@ The initial database seed is deliberately **inactive**. It uses the site's exist
 - A ticket's QR is not considered checked in until the authenticated check-in endpoint validates it and marks it used.
 - Test with internal/test orders first; do not transfer real money while ticket types remain inactive.
 
+## Ticket delivery
+
+Email delivery is not integrated yet. The buyer email is collected for order reference, but the app does not send digital tickets by email. Buyers should save the order number and private lookup key shown at checkout, then use the **บัตรของฉัน** page to retrieve the ticket after admin approval. Do not promise email delivery until an email provider and delivery workflow have been configured and tested.
+
 ## Status
 
 - Database schema and manual review workflow are deployed in Supabase.
