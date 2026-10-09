@@ -1581,3 +1581,392 @@ html{scroll-behavior:smooth}
   [data-magnetic="true"]{transform:none !important;}
   .rh-cursor,.rh-cursor-dot,.rh-pointer-glow{display:none !important;}
 }
+
+
+/* =============================================================
+   ROYAL HILLS FEST 2026 — LANDSCAPE DIGITAL TICKET
+   Reference-inspired premium green/gold face with a light QR tear-off stub.
+============================================================= */
+.rhf-ticket-page { width:100%; }
+.rhf-e-ticket,
+.rhf-e-ticket * { box-sizing:border-box; }
+.rhf-e-ticket {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) clamp(230px,25%,300px);
+  width:100%;
+  min-height:320px;
+  overflow:hidden;
+  position:relative;
+  isolation:isolate;
+  border:1px solid rgba(216,169,52,.62);
+  border-radius:22px;
+  background:#041009;
+  color:#fff9ed;
+  box-shadow:0 22px 64px rgba(0,0,0,.48),0 0 30px rgba(216,169,52,.08);
+}
+.rhf-e-ticket-main {
+  min-width:0;
+  min-height:320px;
+  position:relative;
+  z-index:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:22px;
+  padding:clamp(22px,3vw,42px);
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 98% 100%,rgba(255,218,111,.98) 0%,rgba(216,169,52,.68) 17%,rgba(111,88,28,.36) 39%,transparent 62%),
+    radial-gradient(ellipse at 17% 88%,rgba(7,57,36,.75) 0%,transparent 46%),
+    linear-gradient(116deg,#020805 0%,#07160e 47%,#0b1c10 72%,#152014 100%);
+}
+.rhf-e-ticket-main::after {
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(112deg,transparent 0%,rgba(255,255,255,.018) 44%,rgba(255,255,255,.05) 52%,transparent 62%);
+}
+.rhf-e-ticket-eyebrows {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  color:#efd27c;
+  font-size:clamp(9px,.82vw,12px);
+  font-weight:600;
+  letter-spacing:.28em;
+  line-height:1.4;
+  text-transform:uppercase;
+}
+.rhf-e-ticket-mobile-type { display:none; }
+.rhf-e-ticket-heading {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(180px,25%);
+  align-items:start;
+  gap:clamp(16px,2.4vw,36px);
+}
+.rhf-e-ticket-brand { min-width:0; }
+.rhf-e-ticket-title {
+  margin:0;
+  color:#fffdf7;
+  font-family:'Cinzel','Cormorant Garamond',Georgia,serif;
+  font-size:clamp(28px,3.9vw,58px);
+  font-weight:800;
+  line-height:1.07;
+  letter-spacing:-.035em;
+  text-transform:uppercase;
+  overflow-wrap:anywhere;
+  text-shadow:0 2px 12px rgba(0,0,0,.22);
+}
+.rhf-gold-word { color:#e2b93e; }
+.rhf-e-ticket-gold-rule {
+  height:2px;
+  width:100%;
+  position:relative;
+  margin:12px 0 18px;
+  background:linear-gradient(90deg,#b88513 0%,#f6d76a 32%,rgba(216,169,52,.65) 67%,transparent 100%);
+  box-shadow:0 0 12px rgba(237,191,62,.2);
+}
+.rhf-e-ticket-gold-rule span {
+  position:absolute;
+  left:34%;
+  top:-2px;
+  width:18px;
+  height:5px;
+  border-radius:50%;
+  background:#fff2bd;
+  box-shadow:0 0 8px 3px rgba(255,221,116,.72);
+}
+.rhf-e-ticket-date {
+  margin:0;
+  color:#fffdf8;
+  font-size:clamp(20px,2.45vw,36px);
+  font-weight:650;
+  line-height:1.18;
+  letter-spacing:.015em;
+}
+.rhf-e-ticket-venue {
+  margin:10px 0 0;
+  color:rgba(255,249,237,.88);
+  font-size:clamp(12px,1.2vw,18px);
+  line-height:1.55;
+  letter-spacing:.035em;
+}
+.rhf-e-ticket-type-panel {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:10px;
+  text-align:right;
+  padding-top:0;
+}
+.rhf-e-ticket-type-label {
+  color:#efd27c;
+  font-size:clamp(9px,.8vw,12px);
+  font-weight:600;
+  letter-spacing:.24em;
+}
+.rhf-e-ticket-type-panel strong {
+  color:#fffdf7;
+  font-size:clamp(15px,1.9vw,27px);
+  line-height:1.18;
+  font-weight:750;
+  letter-spacing:.01em;
+}
+.rhf-e-ticket-type-panel > span:not(.rhf-e-ticket-type-label):not(.rhf-e-ticket-paid-label) {
+  color:rgba(255,249,237,.86);
+  font-size:clamp(11px,1.2vw,17px);
+  line-height:1.4;
+}
+.rhf-e-ticket-paid-label {
+  color:#ffdf7e;
+  font-family:'Cinzel',Georgia,serif;
+  font-size:clamp(12px,1.15vw,16px);
+  font-weight:700;
+}
+.rhf-e-ticket-bottom {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:16px;
+  min-width:0;
+}
+.rhf-e-ticket-banner {
+  flex:0 0 auto;
+  padding:10px 36px 8px 0;
+  border-top:3px solid #e4b83f;
+  color:#fffdf7;
+  font-size:clamp(16px,1.9vw,26px);
+  font-weight:500;
+  line-height:1.05;
+  letter-spacing:.27em;
+}
+.rhf-e-ticket-full-id {
+  min-width:0;
+  color:rgba(255,249,237,.76);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:10px;
+  letter-spacing:.035em;
+  text-align:right;
+  overflow-wrap:anywhere;
+}
+.rhf-e-ticket-shine {
+  position:absolute;
+  pointer-events:none;
+  width:42%;
+  height:1px;
+  right:3%;
+  bottom:23%;
+  background:linear-gradient(90deg,transparent,rgba(255,234,161,.8),transparent);
+  filter:drop-shadow(0 0 7px rgba(255,214,91,.8));
+}
+.rhf-e-ticket-stub {
+  position:relative;
+  min-width:0;
+  padding:20px 18px 16px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  border-left:2px dashed rgba(118,111,97,.45);
+  background:linear-gradient(135deg,#fffefa 0%,#f6f2e9 52%,#fffdf8 100%);
+  color:#11130f;
+}
+.rhf-e-ticket-stub::before,
+.rhf-e-ticket-stub::after {
+  content:"";
+  position:absolute;
+  left:-13px;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  background:#10140f;
+  border:1px solid rgba(216,169,52,.3);
+}
+.rhf-e-ticket-stub::before { top:21%; }
+.rhf-e-ticket-stub::after { bottom:21%; }
+.rhf-e-ticket-stub-top {
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:#6e6759;
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.14em;
+}
+.rhf-e-ticket-stub-top strong {
+  color:#12251a;
+  font-size:10px;
+  letter-spacing:.08em;
+}
+.rhf-e-ticket-qr {
+  width:min(100%,174px);
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px;
+  border-radius:9px;
+  border:1px solid #e7e1d5;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(30,25,12,.08);
+}
+.rhf-e-ticket-qr img { display:block; width:100%; height:100%; object-fit:contain; }
+.rhf-e-ticket-qr-loading {
+  color:#373a32;
+  text-align:center;
+  font-size:12px;
+}
+.rhf-e-ticket-barcode {
+  width:min(100%,220px);
+  height:25px;
+  display:flex;
+  align-items:stretch;
+  justify-content:center;
+  gap:1px;
+  overflow:hidden;
+  padding:0 4px;
+}
+.rhf-e-ticket-barcode span { display:block; flex:0 0 auto; height:100%; }
+.rhf-barcode-bar,
+.rhf-barcode-guard { background:#121411; }
+.rhf-barcode-space { background:transparent; }
+.rhf-barcode-guard { width:3px; }
+.rhf-e-ticket-reference {
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:10px;
+  width:100%;
+  color:#171913;
+  line-height:1.1;
+}
+.rhf-e-ticket-reference span {
+  font-size:clamp(12px,1.1vw,17px);
+  letter-spacing:.12em;
+}
+.rhf-e-ticket-reference strong {
+  font-size:clamp(17px,1.5vw,23px);
+  font-weight:850;
+  letter-spacing:.035em;
+}
+.rhf-e-ticket-stub-note {
+  color:#746c5e;
+  font-size:7px;
+  font-weight:650;
+  letter-spacing:.2em;
+  text-align:center;
+}
+@media (max-width:760px) {
+  .rhf-e-ticket {
+    grid-template-columns:minmax(0,1fr);
+    border-radius:16px;
+  }
+  .rhf-e-ticket-main { min-height:250px; padding:22px 19px; gap:18px; }
+  .rhf-e-ticket-eyebrows { font-size:8px; letter-spacing:.17em; }
+  .rhf-e-ticket-mobile-type { display:inline; text-align:right; letter-spacing:.08em; }
+  .rhf-e-ticket-heading { grid-template-columns:minmax(0,1fr); gap:16px; }
+  .rhf-e-ticket-title { font-size:clamp(25px,7vw,43px); }
+  .rhf-e-ticket-type-panel { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; justify-content:space-between; gap:5px 12px; text-align:left; }
+  .rhf-e-ticket-type-label { grid-column:1/-1; font-size:8px; }
+  .rhf-e-ticket-type-panel strong { font-size:15px; }
+  .rhf-e-ticket-type-panel > span:not(.rhf-e-ticket-type-label):not(.rhf-e-ticket-paid-label) { font-size:11px; }
+  .rhf-e-ticket-paid-label { grid-column:2; grid-row:2; text-align:right; font-size:12px; }
+  .rhf-e-ticket-bottom { align-items:flex-end; gap:8px; }
+  .rhf-e-ticket-banner { padding-right:12px; font-size:18px; }
+  .rhf-e-ticket-full-id { max-width:52%; font-size:8px; }
+  .rhf-e-ticket-stub {
+    display:grid;
+    grid-template-columns:minmax(105px,36%) minmax(0,1fr);
+    grid-template-areas:
+      "top top"
+      "qr barcode"
+      "qr reference"
+      "qr note";
+    gap:9px 15px;
+    align-content:center;
+    justify-items:center;
+    padding:17px 16px;
+    border-left:0;
+    border-top:2px dashed rgba(118,111,97,.45);
+  }
+  .rhf-e-ticket-stub::before,
+  .rhf-e-ticket-stub::after {
+    left:auto;
+    top:-13px;
+    bottom:auto;
+    width:24px;
+    height:24px;
+  }
+  .rhf-e-ticket-stub::before { left:22%; }
+  .rhf-e-ticket-stub::after { right:22%; }
+  .rhf-e-ticket-stub-top { grid-area:top; }
+  .rhf-e-ticket-qr { grid-area:qr; width:100%; padding:5px; border-radius:7px; }
+  .rhf-e-ticket-barcode { grid-area:barcode; align-self:end; width:100%; height:23px; }
+  .rhf-e-ticket-reference { grid-area:reference; gap:5px; align-self:center; }
+  .rhf-e-ticket-reference span { font-size:11px; }
+  .rhf-e-ticket-reference strong { font-size:clamp(13px,4vw,20px); }
+  .rhf-e-ticket-stub-note { grid-area:note; align-self:start; font-size:6px; }
+}
+@media print {
+  @page { size:landscape; margin:8mm; }
+  body { background:#fff !important; }
+  .rhf-ticket-page {
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+  .rhf-e-ticket.printable-ticket-card {
+    width:100% !important;
+    max-width:none !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:1px solid #a98a36 !important;
+    border-radius:10px !important;
+    background:#041009 !important;
+    color:#fff9ed !important;
+    box-shadow:none !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+  }
+  .rhf-e-ticket-main {
+    min-height:0 !important;
+    padding:22px !important;
+    background:
+      radial-gradient(ellipse at 98% 100%,rgba(255,218,111,.98) 0%,rgba(216,169,52,.68) 17%,rgba(111,88,28,.36) 39%,transparent 62%),
+      radial-gradient(ellipse at 17% 88%,rgba(7,57,36,.75) 0%,transparent 46%),
+      linear-gradient(116deg,#020805 0%,#07160e 47%,#0b1c10 72%,#152014 100%) !important;
+  }
+  .rhf-e-ticket .rhf-e-ticket-title,
+  .rhf-e-ticket .rhf-e-ticket-date,
+  .rhf-e-ticket .rhf-e-ticket-venue,
+  .rhf-e-ticket .rhf-e-ticket-type-panel strong,
+  .rhf-e-ticket .rhf-e-ticket-banner { color:#fffdf7 !important; }
+  .rhf-e-ticket .rhf-gold-word,
+  .rhf-e-ticket .rhf-e-ticket-paid-label,
+  .rhf-e-ticket .rhf-e-ticket-eyebrows,
+  .rhf-e-ticket .rhf-e-ticket-type-label { color:#e2b93e !important; }
+  .rhf-e-ticket-stub,
+  .rhf-e-ticket-stub * { color:#11130f !important; }
+  .rhf-e-ticket-stub-note,
+  .rhf-e-ticket-stub-top { color:#6e6759 !important; }
+  .rhf-e-ticket-stub-top strong { color:#12251a !important; }
+  .rhf-e-ticket .rhf-e-ticket-full-id { color:rgba(255,249,237,.76) !important; }
+  .rhf-e-ticket-stub { background:#f6f2e9 !important; }
+  .rhf-e-ticket-qr { background:#fff !important; }
+  .rhf-e-ticket-shine { display:none !important; }
+  .rhf-e-ticket-stub::before,
+  .rhf-e-ticket-stub::after { display:block !important; background:#fff !important; }
+  .rhf-ticket-page > .ticket-print-hide,
+  .rhf-ticket-page > .grid { display:none !important; }
+}
