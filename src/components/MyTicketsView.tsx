@@ -38,6 +38,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   const [selectedOrderRecord, setSelectedOrderRecord] = useState<Order | null>(null);
   const [selectedTicketQr, setSelectedTicketQr] = useState<string>('');
   const [lookupQuery, setLookupQuery] = useState('');
+  const [lookupTokenInput, setLookupTokenInput] = useState('');
   const [lookupError, setLookupError] = useState('');
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [refreshingOrder, setRefreshingOrder] = useState(false);
@@ -118,16 +119,43 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
     }
   }, [selectedTicket]);
 
-  const handleLookup = (e: React.FormEvent) => {
+  const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLookupError('');
     const query = lookupQuery.trim();
+    const normalized = query.toLowerCase();
     if (!query) {
       setLookupError('กรุณากรอกเลขคำสั่งซื้อ อีเมล หรือรหัสบัตร/โต๊ะ');
       return;
     }
 
-    const normalized = query.toLowerCase();
+    const savedCredential = ticketingApiService.getSavedCredentials()
+      .find((item) => item.orderNumber.toLowerCase() === normalized);
+    const accessKey = lookupTokenInput.trim() || savedCredential?.lookupToken || '';
+
+    // Cross-device order lookup uses the order number plus its private access key.
+    if (/^rhf26-[a-z0-9-]{6,40}$/i.test(query) && accessKey) {
+      setLoadingOrders(true);
+      try {
+        const result = await ticketingApiService.getOrder(query, accessKey);
+        ticketingApiService.saveCredentials(result.credentials);
+        const order = result.order;
+        setOrders((previous) => [order, ...previous.filter((item) => item.id !== order.id)]);
+        setSelectedOrderRecord(order);
+        setSelectedTicket(order.tickets[0] || null);
+        setLookupQuery('');
+        setLookupTokenInput('');
+        return;
+      } catch (error) {
+        setLookupError(error instanceof Error
+          ? error.message
+          : 'ค้นหาคำสั่งซื้อไม่สำเร็จ กรุณาตรวจเลขคำสั่งซื้อและรหัสติดตาม');
+        return;
+      } finally {
+        setLoadingOrders(false);
+      }
+    }
+
     const byOrder = orders.find((order) => order.id.toLowerCase() === normalized);
     if (byOrder) {
       setSelectedOrderRecord(byOrder);
@@ -159,7 +187,12 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
       return;
     }
 
-    setLookupError('ไม่พบคำสั่งซื้อในอุปกรณ์นี้ กรุณาใช้เลขคำสั่งซื้อหรือเปิดจากอุปกรณ์ที่ใช้สั่งซื้อ');
+    if (/^rhf26-/i.test(query) && !accessKey) {
+      setLookupError('เพื่อความปลอดภัย ให้กรอกเลขคำสั่งซื้อพร้อมรหัสติดตามส่วนตัวที่ได้รับตอนสั่งซื้อ');
+      return;
+    }
+
+    setLookupError('ไม่พบคำสั่งซื้อในอุปกรณ์นี้ กรุณาตรวจสอบข้อมูล หรือกรอกเลขคำสั่งซื้อพร้อมรหัสติดตาม');
   };
 
   const handleCopyTicketCode = () => {
@@ -209,23 +242,40 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
 
         {/* Search Order / Lookup Card */}
         <div className="max-w-xl mx-auto mb-12 bg-[#182719] p-4 sm:p-5 rounded-2xl border border-[#30391E] shadow-xl no-print">
-          <form onSubmit={handleLookup} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-[#65705A] absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <form onSubmit={handleLookup} className="space-y-2.5">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-[#65705A] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={lookupQuery}
+                  onChange={(e) => setLookupQuery(e.target.value)}
+                  placeholder="เลขคำสั่งซื้อ, อีเมล หรือรหัสบัตร/โต๊ะ"
+                  className="w-full bg-[#10140F] border border-[#30391E] rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loadingOrders}
+                className="cursor-pointer bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase px-5 py-2.5 rounded-xl transition-colors shrink-0 disabled:opacity-50"
+              >
+                {loadingOrders ? 'กำลังค้นหา…' : 'ค้นหา'}
+              </button>
+            </div>
+            <div>
+              <label htmlFor="order-lookup-key" className="block text-[11px] text-[#65705A] mb-1">
+                รหัสติดตามส่วนตัว — จำเป็นเมื่อเปิดจากอุปกรณ์อื่น
+              </label>
               <input
-                type="text"
-                value={lookupQuery}
-                onChange={(e) => setLookupQuery(e.target.value)}
-                placeholder="ค้นหาด้วยเลขคำสั่งซื้อ, อีเมล หรือรหัสบัตร/โต๊ะ"
-                className="w-full bg-[#10140F] border border-[#30391E] rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
+                id="order-lookup-key"
+                type="password"
+                autoComplete="off"
+                value={lookupTokenInput}
+                onChange={(e) => setLookupTokenInput(e.target.value)}
+                placeholder="วางรหัสติดตามจากหน้าชำระเงิน"
+                className="w-full bg-[#10140F] border border-[#30391E] rounded-xl px-4 py-2.5 text-xs text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
               />
             </div>
-            <button
-              type="submit"
-              className="cursor-pointer bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase px-5 py-2.5 rounded-xl transition-colors shrink-0"
-            >
-              ค้นหา
-            </button>
           </form>
           {lookupError && <p className="text-xs text-red-400 mt-2">{lookupError}</p>}
         </div>
