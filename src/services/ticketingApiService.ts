@@ -181,7 +181,7 @@ export const ticketingApiService = {
         Authorization: 'Bearer ' + accessToken,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action: 'admin-review', orderId, action: action, note }),
+      body: JSON.stringify({ action: 'admin-review', orderId, reviewAction: action, note }),
     });
     const payload = await response.json().catch(() => ({})) as JsonRecord;
     if (!response.ok) {
