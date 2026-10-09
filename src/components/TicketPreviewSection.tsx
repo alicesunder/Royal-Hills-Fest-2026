@@ -62,7 +62,7 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
   const normalTicket = ticketTypes.find((t) => t.id === 'tt-normal') || ticketTypes[0];
   const vipTicket = ticketTypes.find((t) => t.id === 'tt-vip') || ticketTypes[1];
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, id: string) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>, id: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
