@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock, ExternalLink, FileImage, LogIn, LogOut, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, Clock, ClipboardList, ExternalLink, FileImage, History, LogIn, LogOut, RefreshCw, ShieldCheck, Ticket, XCircle } from 'lucide-react';
 import { getAdminAccessToken, getCachedAdminEmail, signInAdmin, signOutAdmin } from '../services/supabaseAdminAuth';
 import { ticketingApiService } from '../services/ticketingApiService';
 
@@ -24,6 +24,28 @@ type PaymentOrder = {
   }>;
 };
 
+type ReviewHistoryEvent = {
+  id: string;
+  order_id: string;
+  order_number: string;
+  action: 'approved' | 'rejected' | string;
+  reviewer_email?: string | null;
+  amount_total_thb?: number | string | null;
+  tickets_issued?: number | string | null;
+  note?: string | null;
+  payment_reference?: string | null;
+  created_at: string;
+  customer_name?: string | null;
+  customer_email?: string | null;
+};
+
+type ReviewHistoryStats = {
+  approved_orders: number;
+  approved_tickets: number;
+  approved_amount_thb: number;
+  review_actions: number;
+};
+
 const money = (value: unknown) =>
   Number(value || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 });
 
@@ -39,6 +61,15 @@ export const PaymentReviewDashboard: React.FC = () => {
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
+  const [reviewHistory, setReviewHistory] = useState<ReviewHistoryEvent[]>([]);
+  const [historyStats, setHistoryStats] = useState<ReviewHistoryStats>({
+    approved_orders: 0,
+    approved_tickets: 0,
+    approved_amount_thb: 0,
+    review_actions: 0,
+  });
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const loadQueue = useCallback(async (token: string) => {
     setLoading(true);
@@ -58,15 +89,35 @@ export const PaymentReviewDashboard: React.FC = () => {
     }
   }, []);
 
+  const loadHistory = useCallback(async (token: string) => {
+    setHistoryLoading(true);
+    setError('');
+    try {
+      const result = await ticketingApiService.getPaymentReviewHistory(token, 200);
+      setReviewHistory(result.events as unknown as ReviewHistoryEvent[]);
+      setHistoryStats(result.stats);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'โหลดประวัติการอนุมัติไม่สำเร็จ';
+      setError(message);
+      if (/เข้าสู่ระบบ|เซสชัน|สิทธิ์ผู้ดูแล/i.test(message)) {
+        await signOutAdmin();
+        setAccessToken(null);
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     getAdminAccessToken().then((token) => {
       if (!active || !token) return;
       setAccessToken(token);
       void loadQueue(token);
+      void loadHistory(token);
     }).catch(() => undefined);
     return () => { active = false; };
-  }, [loadQueue]);
+  }, [loadHistory, loadQueue]);
 
   const handleSignIn = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -77,7 +128,8 @@ export const PaymentReviewDashboard: React.FC = () => {
       const session = await signInAdmin(email, password);
       setPassword('');
       setAccessToken(session.access_token);
-      await loadQueue(session.access_token);
+      setActiveTab('queue');
+      await Promise.all([loadQueue(session.access_token), loadHistory(session.access_token)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ');
     } finally {
@@ -89,6 +141,9 @@ export const PaymentReviewDashboard: React.FC = () => {
     await signOutAdmin();
     setAccessToken(null);
     setOrders([]);
+    setReviewHistory([]);
+    setHistoryStats({ approved_orders: 0, approved_tickets: 0, approved_amount_thb: 0, review_actions: 0 });
+    setActiveTab('queue');
     setNotice('');
     setError('');
   };
@@ -112,7 +167,7 @@ export const PaymentReviewDashboard: React.FC = () => {
       setNotice(isApprove
         ? 'อนุมัติ ' + order.order_number + ' และออกบัตร ' + String(result.tickets_issued || 0) + ' รายการเรียบร้อย'
         : 'ปฏิเสธหลักฐาน ' + order.order_number + ' แล้ว');
-      await loadQueue(accessToken);
+      await Promise.all([loadQueue(accessToken), loadHistory(accessToken)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ตรวจสอบรายการไม่สำเร็จ');
     } finally {
@@ -178,17 +233,19 @@ export const PaymentReviewDashboard: React.FC = () => {
               <div className="flex items-center gap-2 text-[#D8A934] text-xs font-bold uppercase tracking-wider">
                 <ShieldCheck className="w-4 h-4" /> Secure Payment Review
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#FFF9ED] mt-1">รายการรอตรวจสอบสลิป</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-[#FFF9ED] mt-1">
+                {activeTab === 'queue' ? 'รายการรอตรวจสอบสลิป' : 'ประวัติการอนุมัติและออกบัตร'}
+              </h2>
               <p className="text-xs text-[#F3E7C8]/65 mt-1">ล็อกอินแล้ว: {getCachedAdminEmail() || email}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => void loadQueue(accessToken)}
-                disabled={loading}
+                onClick={() => void (activeTab === 'queue' ? loadQueue(accessToken) : loadHistory(accessToken))}
+                disabled={activeTab === 'queue' ? loading : historyLoading}
                 className="rounded-xl border border-[#30391E] px-3 py-2 text-xs font-semibold text-[#F3E7C8] flex items-center gap-2 disabled:opacity-50"
               >
-                <RefreshCw className={loading ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'} /> รีเฟรช
+                <RefreshCw className={(activeTab === 'queue' ? loading : historyLoading) ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'} /> รีเฟรช
               </button>
               <button
                 type="button"
@@ -200,7 +257,7 @@ export const PaymentReviewDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div className="rounded-xl border border-[#30391E] bg-[#10140F] p-4">
               <p className="text-xs text-[#65705A]">คำสั่งซื้อรอตรวจ</p>
               <p className="text-2xl font-bold text-[#D8A934] mt-1">{orders.length}</p>
@@ -210,9 +267,31 @@ export const PaymentReviewDashboard: React.FC = () => {
               <p className="text-2xl font-bold text-[#FFF9ED] mt-1">{money(orders.reduce((sum, order) => sum + Number(order.amount_total_thb || 0), 0))}</p>
             </div>
             <div className="rounded-xl border border-[#30391E] bg-[#10140F] p-4">
-              <p className="text-xs text-[#65705A]">เงื่อนไขการอนุมัติ</p>
-              <p className="text-sm font-bold text-emerald-300 mt-2">ต้องตรวจยอดเงินจริง</p>
+              <p className="text-xs text-[#65705A]">คำสั่งซื้อที่อนุมัติแล้ว</p>
+              <p className="text-2xl font-bold text-emerald-300 mt-1">{historyStats.approved_orders}</p>
             </div>
+            <div className="rounded-xl border border-[#30391E] bg-[#10140F] p-4">
+              <p className="text-xs text-[#65705A]">บัตรที่ออกจากการอนุมัติ</p>
+              <p className="text-2xl font-bold text-[#D8A934] mt-1">{historyStats.approved_tickets}</p>
+              <p className="text-[10px] text-[#65705A] mt-1">ยอดอนุมัติ {money(historyStats.approved_amount_thb)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#30391E] bg-[#10140F] p-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab('queue')}
+              className={`rounded-lg px-3 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'queue' ? 'bg-[#D8A934] text-[#10140F]' : 'text-[#F3E7C8]/75 hover:bg-[#182719]'}`}
+            >
+              <ClipboardList className="w-4 h-4" /> รายการรอตรวจ ({orders.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('history')}
+              className={`rounded-lg px-3 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'history' ? 'bg-[#D8A934] text-[#10140F]' : 'text-[#F3E7C8]/75 hover:bg-[#182719]'}`}
+            >
+              <History className="w-4 h-4" /> ประวัติการอนุมัติ
+            </button>
           </div>
         </>
       )}
@@ -228,7 +307,7 @@ export const PaymentReviewDashboard: React.FC = () => {
         </div>
       )}
 
-      {accessToken && !loading && orders.length === 0 && (
+      {accessToken && activeTab === 'queue' && !loading && orders.length === 0 && (
         <div className="rounded-2xl border border-dashed border-[#30391E] p-8 text-center">
           <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
           <p className="text-sm font-semibold text-[#FFF9ED]">ไม่มีคำสั่งซื้อที่รอตรวจสอบ</p>
@@ -236,7 +315,79 @@ export const PaymentReviewDashboard: React.FC = () => {
         </div>
       )}
 
-      {accessToken && orders.length > 0 && (
+      {accessToken && activeTab === 'history' && (
+        <div className="space-y-4">
+          {historyLoading ? (
+            <div className="rounded-2xl border border-dashed border-[#30391E] p-8 text-center">
+              <RefreshCw className="w-8 h-8 text-[#D8A934] mx-auto mb-3 animate-spin" />
+              <p className="text-sm text-[#F3E7C8]/75">กำลังโหลดประวัติการอนุมัติ...</p>
+            </div>
+          ) : reviewHistory.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#30391E] p-8 text-center">
+              <History className="w-8 h-8 text-[#65705A] mx-auto mb-3" />
+              <p className="text-sm font-semibold text-[#FFF9ED]">ยังไม่มีประวัติการตรวจสอบ</p>
+              <p className="text-xs text-[#65705A] mt-1">การอนุมัติและปฏิเสธหลังจากเปิดใช้ audit จะปรากฏที่นี่</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-[#FFF9ED]">ประวัติการดำเนินการล่าสุด</h3>
+                  <p className="text-[11px] text-[#65705A] mt-1">แสดงล่าสุดไม่เกิน 200 รายการ · บันทึกจากฐานข้อมูล</p>
+                </div>
+                <span className="text-xs text-[#65705A]">ทั้งหมด {historyStats.review_actions} รายการ</span>
+              </div>
+              {reviewHistory.map((event) => {
+                const approved = event.action === 'approved';
+                return (
+                  <article key={event.id} className="rounded-2xl border border-[#30391E] bg-[#10140F] overflow-hidden">
+                    <div className="p-4 sm:p-5 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-sm font-bold text-[#D8A934]">{event.order_number || 'ไม่ทราบเลขคำสั่งซื้อ'}</span>
+                            <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${approved ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' : 'bg-red-500/10 border-red-500/30 text-red-200'}`}>
+                              {approved ? 'อนุมัติและออกบัตร' : 'ปฏิเสธหลักฐาน'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#F3E7C8]/85">
+                            ผู้ซื้อ: {event.customer_name || '—'} · {event.customer_email || '—'}
+                          </p>
+                        </div>
+                        <div className="sm:text-right shrink-0">
+                          <p className="text-sm font-bold text-[#FFF9ED]">{money(event.amount_total_thb)}</p>
+                          <p className="text-[11px] text-[#65705A] mt-1">{dateTime(event.created_at)}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 rounded-xl border border-[#30391E] bg-[#182719]/50 p-3 text-xs">
+                        <div>
+                          <p className="text-[#65705A] mb-1">อีเมลผู้อนุมัติ / ผู้ตรวจ</p>
+                          <p className="text-[#FFF9ED] break-all font-semibold">{event.reviewer_email || 'ไม่พบอีเมลผู้ดูแล'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[#65705A] mb-1">จำนวนบัตรที่ออก</p>
+                          <p className={`font-bold ${approved ? 'text-emerald-300' : 'text-[#F3E7C8]'}`}>{approved ? Number(event.tickets_issued || 0) + ' ใบ' : '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[#65705A] mb-1">เลขอ้างอิงการโอน</p>
+                          <p className="text-[#F3E7C8] break-all font-mono">{event.payment_reference || '—'}</p>
+                        </div>
+                      </div>
+                      {event.note && (
+                        <div className="rounded-lg border border-[#30391E] px-3 py-2 text-xs">
+                          <span className="text-[#65705A]">หมายเหตุ: </span><span className="text-[#F3E7C8]">{event.note}</span>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </>
+          )}
+        </div>
+      )}
+
+      {accessToken && activeTab === 'queue' && orders.length > 0 && (
         <div className="space-y-4">
           {orders.map((order) => (
             <article key={order.id} className="rounded-2xl border border-[#30391E] bg-[#10140F] overflow-hidden">
