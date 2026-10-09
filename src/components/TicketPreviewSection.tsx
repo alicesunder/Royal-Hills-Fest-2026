@@ -111,7 +111,7 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
         }
       >
         <div className="ticket-card-backdrop">
-          <img src={image} alt="" className="ticket-card-backdrop-image" />
+          <img src={image} alt="" loading="lazy" decoding="async" className="ticket-card-backdrop-image" />
           <div className="ticket-card-backdrop-tint" />
           <div className="ticket-card-noise" />
         </div>
