@@ -367,6 +367,15 @@ async function checkInTicket(request: Request, body: JsonObject) {
   });
 }
 
+async function adminHistory(request: Request, body: JsonObject) {
+  const admin = await requireAdmin(request);
+  const requestedLimit = integer(body.limit, 1, 500) ?? 100;
+  return await rpc("ticketing_admin_review_history", {
+    p_admin_user_id: admin.id,
+    p_limit: requestedLimit,
+  });
+}
+
 async function reviewOrder(request: Request, body: JsonObject) {
   const admin = await requireAdmin(request);
   const orderId = text(body.orderId, 64);
@@ -431,6 +440,9 @@ Deno.serve(async (request: Request) => {
         break;
       case "admin-review":
         result = await reviewOrder(request, body);
+        break;
+      case "admin-history":
+        result = await adminHistory(request, body);
         break;
       case "check-in":
         result = await checkInTicket(request, body);
