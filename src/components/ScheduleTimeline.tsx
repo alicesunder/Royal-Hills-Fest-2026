@@ -637,7 +637,7 @@ const HoleCard: React.FC<{
       <span className="rh-card-sweep" />
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="relative w-24 h-[72px] sm:w-40 sm:h-[104px] rounded-md overflow-hidden shrink-0 border border-[#D8A934]/30">
-          <img src={hole.image} alt={hole.title} className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-700" />
+          <img src={hole.image} alt={hole.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-700" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
           <div className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-gradient-to-b from-[#F4D27A] to-[#D8A934] text-[#1a1408] text-xs font-bold flex items-center justify-center shadow-md">
             {hole.holeNumber}
@@ -1334,7 +1334,7 @@ export const ScheduleTimeline: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative h-48 sm:h-56 overflow-hidden">
-              <img src={selectedHole.image} alt={selectedHole.title} className="w-full h-full object-cover object-center" />
+              <img src={selectedHole.image} alt={selectedHole.title} loading="lazy" decoding="async" className="w-full h-full object-cover object-center" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#182719] via-[#182719]/40 to-transparent" />
               <button
                 onClick={() => setSelectedHole(null)}
