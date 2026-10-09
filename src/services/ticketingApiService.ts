@@ -1,4 +1,5 @@
-import { AttendeeInfo, CartItem, IssuedTicket, Order, VipAttendee } from '../types';
+import { AttendeeInfo, CartItem, IssuedTicket, Order, TicketType, VipAttendee } from '../types';
+import { OFFICIAL_TICKET_TYPES } from './ticketStoreService';
 
 const CREDENTIALS_STORAGE_KEY = 'rhf26_secure_order_lookup_v1';
 
@@ -222,6 +223,46 @@ export const ticketingApiService = {
     } catch {
       return [];
     }
+  },
+
+  async getCatalog(): Promise<TicketType[]> {
+    const rows = await invoke('catalog', {}) as unknown;
+    if (!Array.isArray(rows)) return [];
+
+    const templates = new Map<string, TicketType>(
+      OFFICIAL_TICKET_TYPES.map((item) => [item.id, item])
+    );
+
+    return rows.map((raw) => {
+      const item = raw as JsonRecord;
+      const code = String(item.code || '');
+      const template = templates.get(code);
+      if (!template) return null;
+
+      const inventoryRaw = item.ticket_inventory;
+      const inventory = Array.isArray(inventoryRaw)
+        ? (inventoryRaw[0] || {}) as JsonRecord
+        : (inventoryRaw && typeof inventoryRaw === 'object' ? inventoryRaw as JsonRecord : {});
+      const capacity = Math.max(0, Number(inventory.capacity_total ?? template.totalQuantity));
+      const sold = Math.max(0, Number(inventory.quantity_sold ?? 0));
+      const reserved = Math.max(0, Number(inventory.quantity_reserved ?? 0));
+      const remaining = Math.max(0, capacity - sold - reserved);
+      const now = Date.now();
+      const startsAt = item.sales_start_at ? Date.parse(String(item.sales_start_at)) : null;
+      const endsAt = item.sales_end_at ? Date.parse(String(item.sales_end_at)) : null;
+      const withinWindow = (startsAt === null || startsAt <= now) && (endsAt === null || endsAt > now);
+
+      return {
+        ...template,
+        name: String(item.name || template.name),
+        description: String(item.description || template.description),
+        price: Number(item.price_thb ?? template.price),
+        totalQuantity: capacity,
+        soldQuantity: sold,
+        remainingQuantity: remaining,
+        saleStatus: remaining > 0 && withinWindow ? 'ACTIVE' : 'CLOSED',
+      };
+    }).filter((item): item is TicketType => item !== null);
   },
 
   async createOrder(input: TicketingOrderInput): Promise<TicketingOrderResult> {
