@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TicketType, CartItem } from '../types';
-import { ticketStoreService } from '../services/ticketStoreService';
+import { OFFICIAL_TICKET_TYPES } from '../services/ticketStoreService';
+import { ticketingApiService } from '../services/ticketingApiService';
 import {
   Ticket,
   Plus,
@@ -27,11 +28,47 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
   onProceedToCheckout,
   onOpenMyTickets,
 }) => {
-  const [ticketTypes] = useState<TicketType[]>(() => ticketStoreService.getTicketTypes());
+  const closedTemplates = () => OFFICIAL_TICKET_TYPES.map((ticket) => ({
+    ...ticket,
+    soldQuantity: 0,
+    remainingQuantity: 0,
+    saleStatus: 'CLOSED' as const,
+  }));
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>(closedTemplates);
+  const [catalogStatus, setCatalogStatus] = useState<'loading' | 'available' | 'closed' | 'error'>('loading');
+  const [catalogError, setCatalogError] = useState('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [cardMousePos, setCardMousePos] = useState<Record<string, { x: number; y: number }>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    ticketingApiService.getCatalog()
+      .then((liveTypes) => {
+        if (cancelled) return;
+        const liveByCode = new Map(liveTypes.map((ticket) => [ticket.id, ticket]));
+        const merged = OFFICIAL_TICKET_TYPES.map((template) =>
+          liveByCode.get(template.id) || {
+            ...template,
+            soldQuantity: 0,
+            remainingQuantity: 0,
+            saleStatus: 'CLOSED' as const,
+          }
+        );
+        setTicketTypes(merged);
+        setCatalogStatus(liveTypes.some((ticket) => ticket.saleStatus === 'ACTIVE' && ticket.remainingQuantity > 0) ? 'available' : 'closed');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setTicketTypes(closedTemplates());
+        setCatalogError(error instanceof Error ? error.message : 'เชื่อมต่อระบบบัตรไม่สำเร็จ');
+        setCatalogStatus('error');
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const canBuyTickets = catalogStatus === 'available';
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, id: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -110,13 +147,24 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
           </div>
         </div>
 
+        {catalogStatus !== 'available' && (
+          <div role="status" className="max-w-4xl mx-auto mb-8 rounded-xl border border-[#D8A934]/40 bg-[#182719] px-4 py-4 sm:px-5">
+            <p className="text-sm font-bold text-[#D8A934]">
+              {catalogStatus === 'loading' ? 'กำลังตรวจสอบสถานะจำหน่ายบัตร...' : catalogStatus === 'error' ? 'ยังเชื่อมต่อระบบจำหน่ายบัตรไม่ได้' : 'ขณะนี้ยังไม่เปิดจำหน่ายบัตรออนไลน์'}
+            </p>
+            <p className="text-xs text-[#F3E7C8]/75 mt-1 leading-relaxed">
+              {catalogStatus === 'error' ? (catalogError || 'กรุณาลองใหม่ภายหลัง') : 'ระบบจะแสดงราคาและจำนวนคงเหลือจากฐานข้อมูลจริงเมื่อผู้จัดงานเปิดขาย หลังเปิดขายแล้วจึงจะสามารถสั่งซื้อและชำระเงินได้'}
+            </p>
+          </div>
+        )}
+
         {/* 2 OFFICIAL TICKET CARDS: SIDE-BY-SIDE ON DESKTOP, STACKED ON MOBILE */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 max-w-5xl mx-auto mb-20 perspective-1000 items-stretch">
           {/* =========================================
               CARD 1: บัตรปกติ (NORMAL TICKET)
               ========================================= */}
           {normalTicket && (() => {
-            const isSoldOut = normalTicket.remainingQuantity <= 0 || normalTicket.saleStatus === 'SOLD_OUT';
+            const isSoldOut = !canBuyTickets || normalTicket.remainingQuantity <= 0 || normalTicket.saleStatus !== 'ACTIVE';
             const isHovered = hoveredCardId === normalTicket.id;
             const pos = cardMousePos[normalTicket.id] || { x: 0, y: 0 };
             const rotateX = isHovered ? -pos.y * 12 : 0;
@@ -172,7 +220,9 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                         isSoldOut ? 'text-red-400 font-bold' : 'text-[#65705A]'
                       }`}
                     >
-                      {isSoldOut ? 'บัตรหมด' : `คงเหลือ ${normalTicket.remainingQuantity} ใบ`}
+                      {isSoldOut
+                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : catalogStatus === 'closed' ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมด'
+                        : `คงเหลือ ${normalTicket.remainingQuantity} ใบ`}
                     </span>
                   </div>
 
@@ -234,7 +284,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       disabled
                       className="w-full py-4 rounded-xl bg-[#30391E]/40 border border-[#30391E] text-[#65705A] text-xs font-bold uppercase tracking-wider cursor-not-allowed"
                     >
-                      บัตรหมดแล้ว (Sold Out)
+                      {catalogStatus === 'loading' ? 'กำลังตรวจสอบสถานะการขาย...' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม · กรุณาลองใหม่ภายหลัง' : catalogStatus === 'closed' ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมดแล้ว (Sold Out)'}
                     </button>
                   ) : (
                     <div className="space-y-3">
@@ -305,7 +355,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
               CARD 2: บัตร VIP (VIP TABLE PASS)
               ========================================= */}
           {vipTicket && (() => {
-            const isSoldOut = vipTicket.remainingQuantity <= 0 || vipTicket.saleStatus === 'SOLD_OUT';
+            const isSoldOut = !canBuyTickets || vipTicket.remainingQuantity <= 0 || vipTicket.saleStatus !== 'ACTIVE';
             const isHovered = hoveredCardId === vipTicket.id;
             const pos = cardMousePos[vipTicket.id] || { x: 0, y: 0 };
             const rotateX = isHovered ? -pos.y * 12 : 0;
@@ -571,7 +621,8 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
 
             <button
               onClick={() => onProceedToCheckout(cartItems)}
-              className="mt-5 cursor-pointer w-full py-4 rounded-xl bg-gradient-to-r from-[#D8A934] to-[#c4982c] hover:brightness-110 text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-[#D8A934]/30 active:scale-98 transition-all"
+              disabled={!canBuyTickets || totalCartCount === 0}
+              className="mt-5 cursor-pointer w-full py-4 rounded-xl bg-gradient-to-r from-[#D8A934] to-[#c4982c] hover:brightness-110 text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-[#D8A934]/30 active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
             >
               ดำเนินการสั่งซื้อ (ยอดรวม ฿{totalAmount.toLocaleString()})
               <ArrowRight className="w-4 h-4" />
