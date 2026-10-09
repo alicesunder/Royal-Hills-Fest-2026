@@ -20,6 +20,7 @@ import {
   Users,
   Printer,
   RefreshCw,
+  Clock,
 } from 'lucide-react';
 
 interface MyTicketsViewProps {
