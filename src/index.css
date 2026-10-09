@@ -2508,3 +2508,91 @@ html{scroll-behavior:smooth}
   }
 }
 
+
+
+/* Mobile scroll stability: preserve the visual identity while avoiding full-page
+   parallax/repaint work on touch devices. The content remains fully visible. */
+@media (max-width: 767px), (pointer: coarse) {
+  .rh-motion-ready.rh-touch #about .about-copy-scene,
+  .rh-motion-ready.rh-touch #about .about-visual-scene,
+  .rh-motion-ready.rh-touch #about .about-hero-photo img,
+  .rh-motion-ready.rh-touch #about .about-pillars .pillar-card,
+  .rh-motion-ready.rh-touch #experience .artist-festival-backdrop-image,
+  .rh-motion-ready.rh-touch #experience .artist-festival-header,
+  .rh-motion-ready.rh-touch #experience .artist-festival-stage,
+  .rh-motion-ready.rh-touch #experience .artist-festival-stage-light,
+  .rh-motion-ready.rh-touch #experience .artist-festival-card,
+  .rh-motion-ready.rh-touch #schedule .rh-schedule-backdrop,
+  .rh-motion-ready.rh-touch #schedule .rh-schedule-heading,
+  .rh-motion-ready.rh-touch #schedule .rh-schedule-map,
+  .rh-motion-ready.rh-touch #tickets-preview > section .ticket-scene-heading,
+  .rh-motion-ready.rh-touch #tickets-preview > section .ticket-scene-cards,
+  .rh-motion-ready.rh-touch #location .location-heading,
+  .rh-motion-ready.rh-touch #location .location-scene-card,
+  .rh-motion-ready.rh-touch #location .location-hero-media img,
+  .rh-motion-ready.rh-touch #faq .faq-scene-heading,
+  .rh-motion-ready.rh-touch #faq .faq-scene-list .faq-card,
+  .rh-motion-ready.rh-touch main .rh-mid-cta > .max-w-5xl,
+  .rh-motion-ready.rh-touch .hero-cinematic .hero-motion-core,
+  .rh-motion-ready.rh-touch .hero-cinematic .hero-image {
+    transform: none !important;
+    filter: none !important;
+    will-change: auto !important;
+    transition: none !important;
+  }
+
+  .rh-motion-ready.rh-touch.rh-scrolling-fast main section .location-hero-media img,
+  .rh-motion-ready.rh-touch.rh-scrolling-fast main section .about-hero-photo img,
+  .rh-motion-ready.rh-touch.rh-scrolling-fast #schedule .rh-schedule-backdrop {
+    filter: none !important;
+  }
+
+  /* The sale preview uses layered spotlights, orbit lines, glints and particles.
+     Keep the photography and ticket typography, but stop continuous decoration
+     from painting while the user scrolls on a touch screen. */
+  .rh-touch .ticket-showcase-card,
+  .rh-touch .ticket-showcase-card.is-active,
+  .rh-touch .ticket-showcase-card.is-dimmed {
+    transform: none !important;
+    filter: none !important;
+    will-change: auto !important;
+    transition: opacity .2s ease, border-color .2s ease, box-shadow .2s ease !important;
+  }
+
+  .rh-touch .ticket-card-backdrop-image {
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  .rh-touch .ticket-card-orbit,
+  .rh-touch .ticket-card-beam,
+  .rh-touch .ticket-card-glint,
+  .rh-touch .ticket-card-particle,
+  .rh-touch .ticket-card-spotlight {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  .rh-touch .ticket-card-particle,
+  .rh-touch .ticket-card-orbit,
+  .rh-touch .ticket-card-beam {
+    opacity: .25 !important;
+  }
+
+  .rh-touch .artist-festival-orbits,
+  .rh-touch .artist-festival-grain,
+  .rh-touch .artist-festival-vignette {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .rh-touch .fx-ember,
+  .rh-touch .fx-firefly,
+  .rh-touch .fx-star {
+    animation-play-state: paused !important;
+  }
+}
+
