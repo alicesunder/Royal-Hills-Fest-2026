@@ -120,7 +120,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
   const cartItems = getCartItems();
 
   return (
-    <section id="tickets" className="py-24 sm:py-32 bg-[#10140F] relative min-h-screen overflow-hidden">
+    <section id="tickets" className={`mobile-ticket-store py-24 sm:py-32 bg-[#10140F] relative min-h-screen overflow-hidden ${totalCartCount > 0 ? 'has-selected-tickets' : ''}`}>
       {/* Ambient background lighting */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[850px] h-[450px] bg-gradient-to-b from-[#D8A934]/15 via-[#182719]/40 to-transparent rounded-full blur-[170px] pointer-events-none" />
       <div className="absolute top-20 left-10 w-96 h-96 bg-[#182719] rounded-full blur-[140px] pointer-events-none" />
@@ -128,12 +128,12 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#182719] border border-[#D8A934]/60 text-xs font-semibold tracking-[0.25em] uppercase text-[#D8A934] mb-4 shadow-lg">
+        <div className="ticket-store-header text-center max-w-3xl mx-auto mb-14 sm:mb-18">
+          <div className="ticket-store-eyebrow inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#182719] border border-[#D8A934]/60 text-xs font-semibold tracking-[0.25em] uppercase text-[#D8A934] mb-4 shadow-lg">
             <Ticket className="w-3.5 h-3.5 text-[#D8A934]" />
             Official Event Box Office · 14 NOV 2026
           </div>
-          <h1 className="font-display text-4xl sm:text-6xl font-bold tracking-tight text-[#FFF9ED] leading-tight">
+          <h1 className="ticket-store-title font-display text-4xl sm:text-6xl font-bold tracking-tight text-[#FFF9ED] leading-tight">
             เลือกบัตรเข้าร่วมงาน
           </h1>
           <div className="w-24 h-0.5 bg-gradient-to-r from-transparent via-[#D8A934] to-transparent mx-auto mt-4 mb-4" />
@@ -172,7 +172,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
         )}
 
         {/* 2 OFFICIAL TICKET CARDS: SIDE-BY-SIDE ON DESKTOP, STACKED ON MOBILE */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 max-w-5xl mx-auto mb-20 perspective-1000 items-stretch">
+        <div className="ticket-type-grid grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 max-w-5xl mx-auto mb-20 perspective-1000 items-stretch">
           {/* =========================================
               CARD 1: บัตรปกติ (NORMAL TICKET)
               ========================================= */}
@@ -222,7 +222,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                 <div className="ticket-notch-right" />
 
                 {/* CARD BODY */}
-                <div className="relative z-10 p-7 sm:p-8">
+                <div className="ticket-card-body relative z-10 p-7 sm:p-8">
                   {/* Badge & Inventory */}
                   <div className="flex items-center justify-between gap-2 mb-5">
                     <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#FFF9ED] bg-[#10140F]/90 px-3 py-1 rounded-lg border border-[#30391E] shadow-sm">
@@ -292,7 +292,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                 </div>
 
                 {/* BOTTOM STUB: QUANTITY SELECTOR (จำนวนบัตร) */}
-                <div className="relative z-10 p-7 sm:p-8 pt-0">
+                <div className="ticket-card-footer relative z-10 p-7 sm:p-8 pt-0">
                   {isSoldOut ? (
                     <button
                       disabled
@@ -423,7 +423,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                 </div>
 
                 {/* CARD BODY */}
-                <div className="relative z-10 p-7 sm:p-8">
+                <div className="ticket-card-body relative z-10 p-7 sm:p-8">
                   {/* Badge & Inventory */}
                   <div className="flex items-center justify-between gap-2 mb-5">
                     <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#10140F] bg-gradient-to-r from-[#D8A934] to-[#c4982c] px-3 py-1 rounded-lg shadow-sm flex items-center gap-1">
@@ -516,7 +516,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                 </div>
 
                 {/* BOTTOM STUB: QUANTITY SELECTOR (จำนวนโต๊ะ VIP) */}
-                <div className="relative z-10 p-7 sm:p-8 pt-0">
+                <div className="ticket-card-footer relative z-10 p-7 sm:p-8 pt-0">
                   {isSoldOut ? (
                     <button
                       disabled
@@ -675,12 +675,12 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
 
       {/* Floating Bottom Sticky Cart Bar */}
       {totalCartCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#10140F]/95 border-t border-[#30391E] backdrop-blur-xl py-4 px-4 sm:px-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
+        <div className="mobile-sticky-cart fixed bottom-0 left-0 right-0 z-40 bg-[#10140F]/95 border-t border-[#30391E] backdrop-blur-xl py-4 px-4 sm:px-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-11 h-11 rounded-full bg-[#D8A934]/20 border-2 border-[#D8A934] text-[#D8A934] flex items-center justify-center font-mono font-bold text-lg animate-bounce"
+                  className="mobile-cart-count w-11 h-11 rounded-full bg-[#D8A934]/20 border-2 border-[#D8A934] text-[#D8A934] flex items-center justify-center font-mono font-bold text-lg animate-bounce"
                   style={{ animationDuration: '2.5s' }}
                 >
                   {totalCartCount}
