@@ -258,6 +258,276 @@ async function createOrder(body: JsonObject) {
   };
 }
 
+
+function omiseSettings() {
+  const secretKey = (Deno.env.get("OMISE_SECRET_KEY") || "").trim();
+  const webhookSecret = (Deno.env.get("OMISE_WEBHOOK_SECRET") || "").trim();
+  const credentialsReady = Boolean(secretKey && webhookSecret);
+  return {
+    secretKey,
+    credentialsReady,
+    promptpayEnabled: credentialsReady && Deno.env.get("OMISE_PROMPTPAY_ENABLED") === "true",
+    mobileBankingEnabled: credentialsReady && Deno.env.get("OMISE_MOBILE_BANKING_ENABLED") === "true",
+  };
+}
+
+const MOBILE_BANKING_TYPES: Record<string, string> = {
+  mobile_banking_kbank: "K PLUS",
+  mobile_banking_scb: "SCB Easy",
+  mobile_banking_ktb: "Krungthai NEXT",
+  mobile_banking_bbl: "Bangkok Bank",
+  mobile_banking_bay: "Krungsri KMA",
+};
+
+function paymentCapabilities() {
+  const settings = omiseSettings();
+  return {
+    promptpay: settings.promptpayEnabled,
+    mobileBanking: settings.mobileBankingEnabled,
+    mobileBankingBanks: settings.mobileBankingEnabled
+      ? Object.entries(MOBILE_BANKING_TYPES).map(([type, name]) => ({ type, name }))
+      : [],
+    ready: settings.promptpayEnabled || settings.mobileBankingEnabled,
+  };
+}
+
+async function omiseRequest(path: string, params?: URLSearchParams) {
+  const settings = omiseSettings();
+  if (!settings.secretKey) {
+    throw new ApiError(503, "ระบบรับชำระอัตโนมัติยังไม่ได้ตั้งค่า API key ของผู้ให้บริการ");
+  }
+  const response = await fetch("https://api.omise.co" + path, {
+    method: params ? "POST" : "GET",
+    headers: {
+      Authorization: "Basic " + btoa(settings.secretKey + ":"),
+      ...(params ? { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" } : {}),
+      "Cache-Control": "no-store",
+    },
+    body: params ? params.toString() : undefined,
+  });
+  const result = await responseJson(response) as JsonObject | null;
+  if (!response.ok || !result || typeof result !== "object") {
+    const providerMessage = result && typeof result.message === "string" ? result.message : "";
+    console.error("Omise API request failed:", { status: response.status, path, message: providerMessage.slice(0, 160) });
+    throw new ApiError(response.status >= 400 && response.status < 500 ? 422 : 502,
+      "ผู้ให้บริการรับชำระเงินไม่สามารถสร้างหรืออ่านรายการได้ กรุณาลองใหม่หรือติดต่อผู้จัดงาน");
+  }
+  return result;
+}
+
+function safeProviderUrl(value: unknown, allowedHosts: string[]) {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !allowedHosts.includes(url.hostname)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function paymentResponse(charge: JsonObject, orderNumber: string) {
+  const source = (charge.source && typeof charge.source === "object" ? charge.source : {}) as JsonObject;
+  const scannableCode = (source.scannable_code && typeof source.scannable_code === "object" ? source.scannable_code : {}) as JsonObject;
+  const image = (scannableCode.image && typeof scannableCode.image === "object" ? scannableCode.image : {}) as JsonObject;
+  const sourceType = text(source.type, 80);
+  const isPromptPay = sourceType === "promptpay";
+  return {
+    orderNumber,
+    chargeId: text(charge.id, 80),
+    amountSubunits: Number(charge.amount || 0),
+    currency: text(charge.currency, 8),
+    chargeStatus: text(charge.status, 40),
+    paymentMethod: isPromptPay ? "QR_PROMPTPAY" : "MOBILE_BANKING",
+    bankType: sourceType,
+    bankName: MOBILE_BANKING_TYPES[sourceType] || null,
+    qrImageUrl: isPromptPay ? safeProviderUrl(image.download_uri, ["api.omise.co"]) : null,
+    authorizeUrl: safeProviderUrl(charge.authorize_uri, ["pay.omise.co"]),
+    expiresAt: typeof charge.expires_at === "string" ? charge.expires_at : null,
+  };
+}
+
+async function completeIfSuccessful(charge: JsonObject, orderNumber: string) {
+  if (charge.status !== "successful" || charge.paid !== true) return null;
+  const metadata = (charge.metadata && typeof charge.metadata === "object" ? charge.metadata : {}) as JsonObject;
+  if (text(metadata.order_number, 40) !== orderNumber) {
+    throw new ApiError(409, "รายการชำระเงินไม่ตรงกับคำสั่งซื้อ");
+  }
+  return await rpc("ticketing_complete_provider_payment", {
+    p_order_number: orderNumber,
+    p_provider_payment_id: text(charge.id, 80),
+    p_amount_subunits: Number(charge.amount || 0),
+    p_currency: text(charge.currency, 8),
+  });
+}
+
+async function getExistingProviderCharge(chargeId: string, orderNumber: string, expectedAmountThb: number) {
+  const charge = await omiseRequest("/charges/" + encodeURIComponent(chargeId)) as JsonObject;
+  const metadata = (charge.metadata && typeof charge.metadata === "object" ? charge.metadata : {}) as JsonObject;
+  const source = (charge.source && typeof charge.source === "object" ? charge.source : {}) as JsonObject;
+  if (text(metadata.order_number, 40) !== orderNumber ||
+      Number(charge.amount || 0) !== Math.round(expectedAmountThb * 100) ||
+      text(charge.currency, 8) !== "THB" ||
+      !(text(source.type, 80) === "promptpay" || Object.hasOwn(MOBILE_BANKING_TYPES, text(source.type, 80)))) {
+    throw new ApiError(409, "รายการรับชำระเงินเดิมไม่ตรงกับคำสั่งซื้อนี้ กรุณาติดต่อผู้จัดงาน");
+  }
+  await completeIfSuccessful(charge, orderNumber);
+  return paymentResponse(charge, orderNumber);
+}
+
+async function createProviderPayment(body: JsonObject) {
+  const settings = omiseSettings();
+  const paymentMethod = text(body.paymentMethod, 32);
+  const bankType = text(body.bankType, 80);
+  const orderNumber = text(body.orderNumber, 40);
+  const lookupToken = text(body.lookupToken, 128);
+  const lookupTokenHash = await hashHex(lookupToken);
+
+  if (!settings.credentialsReady) {
+    throw new ApiError(503, "ยังไม่ได้เปิดใช้งานระบบรับชำระอัตโนมัติ กรุณาติดต่อผู้จัดงาน");
+  }
+  if (paymentMethod === "QR_PROMPTPAY" && !settings.promptpayEnabled) {
+    throw new ApiError(503, "ช่องทาง PromptPay อัตโนมัติยังไม่ได้เปิดใช้งาน");
+  }
+  if (paymentMethod === "MOBILE_BANKING" &&
+      (!settings.mobileBankingEnabled || !Object.hasOwn(MOBILE_BANKING_TYPES, bankType))) {
+    throw new ApiError(503, "ช่องทาง Mobile Banking นี้ยังไม่ได้เปิดใช้งาน");
+  }
+  if (!["QR_PROMPTPAY", "MOBILE_BANKING"].includes(paymentMethod)) {
+    throw new ApiError(400, "วิธีชำระเงินไม่ถูกต้อง");
+  }
+
+  const customerData = await getCustomerOrder(orderNumber, lookupToken) as JsonObject;
+  const order = (customerData.order && typeof customerData.order === "object" ? customerData.order : {}) as JsonObject;
+  if (text(order.status, 40) === "paid") {
+    return { orderNumber, chargeStatus: "successful", alreadyPaid: true };
+  }
+  if (text(order.status, 40) !== "pending") {
+    throw new ApiError(409, "คำสั่งซื้อนี้ไม่ได้รอชำระเงินแล้ว");
+  }
+  const amountThb = Number(order.amount_total_thb || 0);
+  if (!Number.isSafeInteger(Math.round(amountThb * 100)) || amountThb <= 0) {
+    throw new ApiError(409, "ยอดคำสั่งซื้อไม่ถูกต้อง");
+  }
+  const expiresAt = typeof order.expires_at === "string" ? order.expires_at : "";
+  const expiryEpoch = Date.parse(expiresAt);
+  if (!Number.isFinite(expiryEpoch) || expiryEpoch <= Date.now()) {
+    throw new ApiError(409, "คำสั่งซื้อนี้หมดเวลาแล้ว กรุณาเริ่มรายการใหม่");
+  }
+
+  const attemptToken = crypto.randomUUID();
+  const claim = await rpc("ticketing_claim_provider_payment", {
+    p_order_number: orderNumber,
+    p_lookup_token_hash: lookupTokenHash,
+    p_attempt_token: attemptToken,
+  }) as JsonObject;
+  const claimState = text(claim.state, 32);
+
+  if (claimState === "already_paid") {
+    return { orderNumber, chargeStatus: "successful", alreadyPaid: true };
+  }
+  if (claimState === "in_progress") {
+    throw new ApiError(409, "กำลังสร้างรายการชำระเงินให้คำสั่งซื้อนี้ กรุณารอสักครู่แล้วลองใหม่");
+  }
+  if (claimState === "existing") {
+    return await getExistingProviderCharge(text(claim.provider_payment_id, 80), orderNumber, amountThb);
+  }
+  if (claimState !== "claimed") {
+    throw new ApiError(409, "ไม่สามารถจองรายการชำระเงินได้ กรุณาลองใหม่");
+  }
+
+  const claimRef = text(claim.claim_ref, 180);
+  if (!claimRef.startsWith("creating:")) {
+    throw new ApiError(500, "ระบบไม่สามารถเริ่มรายการชำระเงินได้");
+  }
+
+  let chargeCreated = false;
+  try {
+    const publicSiteUrl = (Deno.env.get("PUBLIC_SITE_URL") || "https://royalhillsfest2026-three.vercel.app").replace(/\/+$/, "");
+    const returnUrl = new URL("/", publicSiteUrl);
+    returnUrl.searchParams.set("payment_return", "1");
+    returnUrl.searchParams.set("order", orderNumber);
+
+    const params = new URLSearchParams();
+    params.set("amount", String(Math.round(amountThb * 100)));
+    params.set("currency", "THB");
+    params.set("source[type]", paymentMethod === "QR_PROMPTPAY" ? "promptpay" : bankType);
+    params.set("description", "ROYAL HILLS FEST 2026 " + orderNumber);
+    params.set("metadata[order_number]", orderNumber);
+    params.set("metadata[payment_method]", paymentMethod);
+    if (paymentMethod === "MOBILE_BANKING") params.set("return_uri", returnUrl.toString());
+    if (paymentMethod === "QR_PROMPTPAY") params.set("expires_at", new Date(expiryEpoch).toISOString());
+
+    const supabaseUrl = config().url;
+    params.append("webhook_endpoints[]", supabaseUrl + "/functions/v1/omise-webhook");
+
+    const charge = await omiseRequest("/charges", params);
+    chargeCreated = true;
+    const chargeId = text(charge.id, 80);
+    const metadata = (charge.metadata && typeof charge.metadata === "object" ? charge.metadata : {}) as JsonObject;
+    if (!/^chrg_(test_)?[A-Za-z0-9]+$/.test(chargeId) ||
+        text(metadata.order_number, 40) !== orderNumber ||
+        Number(charge.amount || 0) !== Math.round(amountThb * 100) ||
+        text(charge.currency, 8) !== "THB") {
+      throw new ApiError(502, "ผู้ให้บริการส่งข้อมูลการชำระเงินที่ตรวจสอบไม่ได้ กรุณาติดต่อผู้จัดงาน");
+    }
+
+    await rpc("ticketing_set_provider_payment", {
+      p_order_number: orderNumber,
+      p_lookup_token_hash: lookupTokenHash,
+      p_claim_ref: claimRef,
+      p_provider_payment_id: chargeId,
+    });
+
+    await completeIfSuccessful(charge, orderNumber);
+    return paymentResponse(charge, orderNumber);
+  } catch (error) {
+    if (!chargeCreated) {
+      await rpc("ticketing_release_provider_payment_claim", {
+        p_order_number: orderNumber,
+        p_lookup_token_hash: lookupTokenHash,
+        p_claim_ref: claimRef,
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
+}
+
+async function getOrderWithProviderRefresh(orderNumber: string, lookupToken: string) {
+  let result = await getCustomerOrder(orderNumber, lookupToken) as JsonObject;
+  const order = (result.order && typeof result.order === "object" ? result.order : {}) as JsonObject;
+  const settings = omiseSettings();
+  if (text(order.status, 40) !== "pending" || !settings.secretKey) return result;
+
+  try {
+    const query = new URLSearchParams();
+    query.set("select", "payment_provider,provider_payment_id");
+    query.set("order_number", "eq." + orderNumber);
+    query.set("lookup_token_hash", "eq." + await hashHex(lookupToken));
+    query.set("limit", "1");
+    const rows = await rest("orders?" + query.toString()) as JsonObject[];
+    const payment = Array.isArray(rows) ? rows[0] : null;
+    if (payment && payment.payment_provider === "omise" &&
+        typeof payment.provider_payment_id === "string" &&
+        /^chrg_(test_)?[A-Za-z0-9]+$/.test(payment.provider_payment_id)) {
+      const charge = await omiseRequest("/charges/" + encodeURIComponent(payment.provider_payment_id)) as JsonObject;
+      const metadata = (charge.metadata && typeof charge.metadata === "object" ? charge.metadata : {}) as JsonObject;
+      if (text(metadata.order_number, 40) === orderNumber) {
+        await completeIfSuccessful(charge, orderNumber);
+        if (charge.status === "successful" && charge.paid === true) {
+          result = await getCustomerOrder(orderNumber, lookupToken) as JsonObject;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Provider payment refresh failed:", {
+      orderNumber,
+      message: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+    });
+  }
+  return result;
+}
+
 async function submitProof(form: FormData) {
   const orderNumber = text(form.get("orderNumber"), 40);
   const lookupToken = text(form.get("lookupToken"), 128);
@@ -428,12 +698,18 @@ Deno.serve(async (request: Request) => {
       case "create-order":
         result = await createOrder(body);
         break;
+      case "payment-capabilities":
+        result = paymentCapabilities();
+        break;
+      case "create-provider-payment":
+        result = await createProviderPayment(body);
+        break;
       case "submit-proof":
         if (!form) throw new ApiError(400, "รูปแบบข้อมูลหลักฐานไม่ถูกต้อง");
         result = await submitProof(form);
         break;
       case "get-order":
-        result = await getCustomerOrder(text(body.orderNumber, 40), text(body.lookupToken, 128));
+        result = await getOrderWithProviderRefresh(text(body.orderNumber, 40), text(body.lookupToken, 128));
         break;
       case "admin-list":
         result = await adminQueue(request);
