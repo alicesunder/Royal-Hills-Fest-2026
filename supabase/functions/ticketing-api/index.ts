@@ -262,9 +262,17 @@ async function createOrder(body: JsonObject) {
 function omiseSettings() {
   const secretKey = (Deno.env.get("OMISE_SECRET_KEY") || "").trim();
   const webhookSecret = (Deno.env.get("OMISE_WEBHOOK_SECRET") || "").trim();
-  const credentialsReady = Boolean(secretKey && webhookSecret);
+  // Default to test mode. Reject a key whose prefix does not match the explicitly
+  // configured mode so a copied live key cannot be used during test rollout.
+  const mode = (Deno.env.get("OMISE_MODE") || "test").trim().toLowerCase();
+  const expectedPrefix = mode === "test" ? "skey_test_" : mode === "live" ? "skey_live_" : "";
+  const keyMatchesMode = Boolean(expectedPrefix && secretKey.startsWith(expectedPrefix));
+  const credentialsReady = Boolean(secretKey && webhookSecret && keyMatchesMode);
   return {
     secretKey,
+    webhookSecret,
+    mode,
+    keyMatchesMode,
     credentialsReady,
     promptpayEnabled: credentialsReady && Deno.env.get("OMISE_PROMPTPAY_ENABLED") === "true",
     mobileBankingEnabled: credentialsReady && Deno.env.get("OMISE_MOBILE_BANKING_ENABLED") === "true",
@@ -293,8 +301,8 @@ function paymentCapabilities() {
 
 async function omiseRequest(path: string, params?: URLSearchParams) {
   const settings = omiseSettings();
-  if (!settings.secretKey) {
-    throw new ApiError(503, "ระบบรับชำระอัตโนมัติยังไม่ได้ตั้งค่า API key ของผู้ให้บริการ");
+  if (!settings.credentialsReady) {
+    throw new ApiError(503, "ระบบรับชำระอัตโนมัติยังไม่ได้ตั้งค่า API key, Webhook Secret หรือโหมด Test/Live ให้ตรงกัน");
   }
   const response = await fetch("https://api.omise.co" + path, {
     method: params ? "POST" : "GET",
