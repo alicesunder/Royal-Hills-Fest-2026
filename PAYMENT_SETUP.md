@@ -1,67 +1,72 @@
 # Royal Hills Fest 2026 — Payment setup
 
-This branch implements **manual PromptPay verification**: a buyer places an order, transfers to the official PromptPay QR, submits a slip and transaction reference, and an enabled admin checks the actual incoming bank transaction before approving. The backend only issues tickets after that approval.
+The existing checkout continues to support the original manual PromptPay workflow as a fallback. The optional Opn/Omise integration adds per-order PromptPay QR and Mobile Banking redirects; tickets are issued only by the database after a verified successful provider charge.
 
-## 1. Cloudflare Pages build variables
+## 1. Provider account and eligibility
 
-In **Cloudflare Dashboard → Workers & Pages → the Pages project → Settings → Environment variables**, set the following for Preview and Production:
+An authorized event organizer must complete Opn/Omise merchant onboarding and request activation of the payment methods to be used. Mobile Banking methods may require additional approval/terms from Opn. Do not enable online sales until the account is approved and the beneficiary and commercial terms have been confirmed.
 
-- `VITE_SUPABASE_URL`: `https://imgkvxetdnerqnipfutd.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`: copy the publishable key from Supabase **Project Settings → API Keys**. This is a public client key and is intentionally used in the browser.
-- `VITE_PROMPTPAY_QR_URL`: `/promptpay-qr.png` only after the authentic QR image has been added to `public/promptpay-qr.png`.
+The supported Mobile Banking charge source types currently wired into the code are:
 
-Then run a new build/deployment. **Never set a service-role or secret key as a `VITE_*` variable or commit it to GitHub.**
+- `mobile_banking_kbank` — K PLUS
+- `mobile_banking_scb` — SCB Easy
+- `mobile_banking_ktb` — Krungthai NEXT
+- `mobile_banking_bbl` — Bangkok Bank
+- `mobile_banking_bay` — Krungsri KMA
 
-## 2. PromptPay QR image
+Enable only payment methods that Opn has actually activated for the merchant account.
 
-The checkout now defaults to `/promptpay-qr.svg`. This vector QR was generated from the exact 74-character payload decoded from the SCB/PromptPay image supplied by the event owner; a round-trip decode test confirmed that the payload matches. The displayed pattern is regenerated in black and white, so it does not retain the SCB logo shown in the original screenshot.
+## 2. Configure Edge Function secrets
 
-Before opening sales, scan the displayed QR with the receiving bank app and verify the beneficiary details yourself. This is a static receiving QR: it does not detect incoming transfers, verify an amount, or confirm payment automatically. An enabled admin must still compare the real incoming bank transaction before approving a payment.
+Never place server-side keys in Vite environment variables, frontend source code, GitHub, screenshots, or chat messages.
 
-## 3. Create the payment-review admin
+In Supabase Dashboard → Project `imgkvxetdnerqnipfutd` → Edge Functions → Secrets, add the following **for the environment you are testing**:
 
-1. In Supabase **Authentication → Users**, add the trusted admin's user account.
-2. Copy that user's UUID.
-3. Open SQL Editor and run the following with that exact UUID:
+- `OMISE_SECRET_KEY`: secret key copied from the Opn/Omise dashboard (start with a test key).
+- `OMISE_WEBHOOK_SECRET`: Base64-encoded webhook signing secret from the same test/live environment.
+- `OMISE_PROMPTPAY_ENABLED`: `true` only after PromptPay has been enabled and tested; otherwise `false`.
+- `OMISE_MOBILE_BANKING_ENABLED`: `true` only after the required Mobile Banking methods have been enabled and tested; otherwise `false`.
+- `PUBLIC_SITE_URL`: `https://royalhillsfest2026-three.vercel.app`.
 
-```sql
-insert into ticketing_private.admin_users (user_id, enabled)
-values ('REPLACE_WITH_ADMIN_USER_UUID'::uuid, true)
-on conflict (user_id) do update set enabled = true;
-```
+Supabase already supplies `SUPABASE_URL` and the project server key to Edge Functions. Do not create a `VITE_OMISE_SECRET_KEY`, do not store a secret key in Vercel's public frontend environment, and do not commit any secret values to the repository.
 
-Only users present in this private allowlist can open the payment review queue or approve/reject slips. Do not enable public sign-up for payment-review administrators.
+Capabilities are deliberately reported as disabled unless both the Opn secret key and webhook secret exist and their feature flags are enabled. The checkout then keeps the manual slip-review path available.
 
-## 4. Ticket catalogue
+## 3. Deploy and register the webhook
 
-The initial database seed is deliberately **inactive**. It uses the site's existing draft catalogue values: normal ticket THB 555, VIP table THB 5,555, capacity 500 normal tickets and 20 VIP tables. Verify these commercial values and actual event capacity with the event owner before changing `is_active` to `true`. Do not open sales until the receiving QR, allowed admin, environment variables, stock and review workflow have all been tested.
+The webhook Edge Function URL is:
 
-## 5. Safe test checklist
+`https://imgkvxetdnerqnipfutd.supabase.co/functions/v1/omise-webhook`
 
-- A pending order reserves stock; the amount is calculated on the server from the database price.
-- Customer lookup requires the private random lookup token created at checkout.
-- A submitted image is only a claim of payment, never proof that money arrived.
-- Admin opens the private slip link and verifies the actual transaction, amount and destination account in the bank account before approving.
-- Rejected submissions do not issue tickets. Approval transitions the order to paid and issues server-stored ticket tokens in one database transaction.
-- Rejected submissions receive a fresh 15-minute window so the buyer can submit a corrected proof.
-- Checkout shows the order number and a private lookup key. Buyers can use both to retrieve the order from another device; the lookup key must be kept private.
-- A ticket's QR is not considered checked in until the authenticated check-in endpoint validates it and marks it used.
-- Test with internal/test orders first; do not transfer real money while ticket types remain inactive.
+The charge creation request adds this URL as its per-charge webhook endpoint. The function verifies Opn's HMAC-SHA256 signature over the exact raw request body, checks the timestamp, independently fetches the charge from Opn, verifies the order number, source type, currency, amount and successful status, and then calls a service-role-only database function. Never mark an order paid based on the browser return URL or a submitted slip alone.
 
-## Gate check-in
+Opn documents the webhook signature headers and verification flow at https://docs.omise.co/api-webhooks/thailand. Configure a webhook secret in the correct test/live dashboard environment.
 
-The `เช็กอินหน้างาน` page now uses the same Supabase Auth admin allowlist and verifies each scanned QR token against the database. A ticket is accepted only when its order is paid and its ticket status is still unused; repeat scans are rejected and logged. The gate scanner requires the same admin account to be enabled in `ticketing_private.admin_users`.
+## 4. Database and issuance safety
 
-**Current VIP limitation:** one VIP QR currently checks in the entire VIP table as one ticket. Per-seat VIP check-in and wristband issuance are not yet connected to the database scanner, so do not advertise per-seat online check-in until that workflow is built and tested.
+The additive migration `20261010130000_opn_automated_payments.sql` adds narrowly scoped service-role-only functions to:
+- claim a payment attempt without creating duplicate charges on repeated checkout requests;
+- bind the provider charge to the order;
+- reconcile the charge after a redirect or webhook;
+- verify THB currency and exact amount;
+- issue ticket records and QR tokens in the same database transaction as the paid/order-inventory update;
+- refuse to issue duplicate tickets when a webhook is retried.
 
-## Ticket delivery
+If the amount does not match, or a late payment arrives after inventory has been released and the stock cannot be re-reserved, the order is held for manual review rather than issuing a ticket automatically.
 
-Email delivery is not integrated yet. The buyer email is collected for order reference, but the app does not send digital tickets by email. Buyers should save the order number and private lookup key shown at checkout, then use the **บัตรของฉัน** page to retrieve the ticket after admin approval. Do not promise email delivery until an email provider and delivery workflow have been configured and tested.
+## 5. Required test plan before live mode
 
-## Status
+1. Keep ticket types inactive or use only test-mode charges while validating the provider integration.
+2. In test mode, exercise both PromptPay and each activated Mobile Banking source. Confirm a pending charge does not issue tickets.
+3. Simulate successful and failed test charges in the Opn dashboard. Confirm success issues the expected number of tickets once, and a failed/cancelled payment never issues tickets.
+4. Replay the same successful webhook event. Confirm the order still has only one set of ticket rows.
+5. Test mismatched amount/currency, unknown order, expired order, double-click/retry, user returning without paying, and temporary provider/network failures.
+6. Test the bank redirect and return to `/?payment_return=1&order=<order-number>`; the browser return itself is not proof of payment, and the server must independently verify status.
+7. Only after review, switch to live API/webhook secrets and ask Opn to confirm that the actual merchant account is eligible for the intended methods.
 
-- Database schema and manual review workflow are deployed in Supabase.
-- Edge Function `ticketing-api` is deployed.
-- Frontend is on the non-production `cloudflare-pages-setup` Git branch.
-- PromptPay QR SVG is present, but the recipient must still be verified in the banking app before launch.
-- Admin allowlist is not configured yet. Ticket types remain inactive and live sales remain disabled.
+## 6. Existing features and current limits
+
+- Existing manual slip review remains available when Opn secrets are absent or automated channels are disabled.
+- Email delivery is not integrated yet. Buyers can retrieve paid tickets from the **บัตรของฉัน** page using the order number and private lookup key saved at checkout.
+- QR check-in remains database-backed; a QR is not considered used until the authenticated check-in endpoint records it.
+- The automatic-payment branch has not been tested with real merchant credentials in this environment. Do not accept real payments until the test plan above is completed and the merchant account has been approved.
