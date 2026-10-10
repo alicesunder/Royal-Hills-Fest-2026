@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActiveView, CartItem, Order, IssuedTicket } from './types';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -25,6 +25,71 @@ export default function App() {
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [checkInTargetCode, setCheckInTargetCode] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('payment_return') !== '1') return;
+
+    const orderNumber = url.searchParams.get('order') || '';
+    const credential = ticketingApiService.getSavedCredentials()
+      .find((item) => item.orderNumber === orderNumber);
+    window.history.replaceState({}, '', url.pathname);
+    setActiveView('my-tickets');
+
+    if (!credential) {
+      setNotification('กลับจากหน้าธนาคารแล้ว แต่ไม่พบรหัสติดตามในอุปกรณ์นี้ กรุณาใช้เลขคำสั่งซื้อและรหัสติดตามเพื่อค้นหาบัตร');
+      return;
+    }
+
+    let cancelled = false;
+    let completed = false;
+    let attempts = 0;
+    let busy = false;
+    let interval: number | undefined;
+
+    const refreshReturnedPayment = async () => {
+      if (cancelled || completed || busy) return;
+      busy = true;
+      attempts += 1;
+      try {
+        const result = await ticketingApiService.getOrder(credential.orderNumber, credential.lookupToken);
+        if (cancelled) return;
+        if (result.order.paymentStatus === 'PAID' && result.order.tickets.length > 0) {
+          completed = true;
+          setCurrentOrder(result.order);
+          setActiveView('my-tickets');
+          setNotification('ชำระเงินสำเร็จ! ระบบออกตั๋วดิจิทัลให้แล้ว');
+          if (interval !== undefined) window.clearInterval(interval);
+        } else if (result.order.paymentStatus === 'CANCELLED' || result.order.paymentStatus === 'FAILED') {
+          completed = true;
+          setCurrentOrder(null);
+          setNotification('รายการนี้ยังไม่ได้ออกตั๋ว กรุณาตรวจสอบสถานะคำสั่งซื้อหรือติดต่อผู้จัดงาน');
+          if (interval !== undefined) window.clearInterval(interval);
+        } else if (attempts === 1) {
+          setNotification('กลับจากหน้าธนาคารแล้ว กำลังตรวจสอบผลชำระเงินจริง...');
+        } else if (attempts >= 18) {
+          completed = true;
+          setNotification('ยังไม่ได้รับการยืนยันชำระเงิน โปรดกดตรวจสอบสถานะในหน้าบัตรของฉันอีกครั้ง');
+          if (interval !== undefined) window.clearInterval(interval);
+        }
+      } catch {
+        if (attempts >= 18) {
+          completed = true;
+          setNotification('ยังตรวจสอบผลชำระเงินไม่ได้ โปรดเปิดบัตรของฉันและลองตรวจสอบสถานะอีกครั้ง');
+          if (interval !== undefined) window.clearInterval(interval);
+        }
+      } finally {
+        busy = false;
+      }
+    };
+
+    void refreshReturnedPayment();
+    interval = window.setInterval(() => void refreshReturnedPayment(), 5000);
+    return () => {
+      cancelled = true;
+      if (interval !== undefined) window.clearInterval(interval);
+    };
+  }, []);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
