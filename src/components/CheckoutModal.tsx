@@ -22,6 +22,8 @@ import {
   Crown,
 } from 'lucide-react';
 
+const LOCAL_PAYMENT_SANDBOX = import.meta.env.VITE_LOCAL_PAYMENT_SANDBOX === 'true';
+
 interface CheckoutModalProps {
   cart: CartItem[];
   onClose: () => void;
@@ -86,7 +88,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       .then((capabilities) => {
         if (cancelled) return;
         setPaymentCapabilities(capabilities);
-        if (capabilities.promptpay) {
+        if (LOCAL_PAYMENT_SANDBOX) {
+          // In local mode, never fall back to the event's static PromptPay QR/manual review path.
+          setPaymentMethod(
+            capabilities.promptpay ? 'QR_PROMPTPAY' :
+            capabilities.mobileBanking ? 'MOBILE_BANKING' : 'QR_PROMPTPAY'
+          );
+        } else if (capabilities.promptpay) {
           setPaymentMethod((current) => current === 'BANK_TRANSFER' ? 'QR_PROMPTPAY' : current);
         } else if (!capabilities.mobileBanking) {
           setPaymentMethod('BANK_TRANSFER');
@@ -102,7 +110,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       .catch(() => {
         if (!cancelled) {
           setPaymentCapabilities({ promptpay: false, mobileBanking: false, mobileBankingBanks: [], ready: false });
-          setPaymentMethod('BANK_TRANSFER');
+          setPaymentMethod(LOCAL_PAYMENT_SANDBOX ? 'QR_PROMPTPAY' : 'BANK_TRANSFER');
         }
       });
     return () => { cancelled = true; };
@@ -248,6 +256,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   const handleProceedToPayment = async () => {
+    if (LOCAL_PAYMENT_SANDBOX && !paymentCapabilities.ready) {
+      setCheckoutError('Local Test Mode: ตั้งค่า Test API Key และเปิดช่องทางทดสอบใน local-staging/supabase/.env.local ก่อน');
+      return;
+    }
+    if (LOCAL_PAYMENT_SANDBOX && paymentMethod === 'BANK_TRANSFER') {
+      setCheckoutError('Local Test Mode ปิดการโอน PromptPay แบบเดิมและการแนบสลิป เพื่อป้องกันการโอนเงินจริง');
+      return;
+    }
     setCheckoutError('');
     setPaymentNotice('');
     setProviderPayment(null);
@@ -728,6 +744,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {checkoutError && <p role="alert" className="rounded-lg border border-red-500/40 bg-red-950/20 p-3 text-xs text-red-200">{checkoutError}</p>}
 
+              {LOCAL_PAYMENT_SANDBOX && (
+                <div role="status" className="rounded-xl border border-sky-400/40 bg-sky-950/30 p-3 text-left text-xs text-sky-100 space-y-1">
+                  <p className="font-bold">LOCAL TEST MODE · ไม่มีการรับเงินจริง</p>
+                  <p>ใช้เฉพาะ Test API Key เท่านั้น เส้นทาง PromptPay QR แบบเดิมและการส่งสลิปถูกซ่อนในโหมด local เพื่อป้องกันการโอนเงินจริง</p>
+                </div>
+              )}
+
               {/* Payment method selection. Automated channels stay unavailable until server-side Opn secrets and merchant capabilities are configured. */}
               <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 space-y-3 text-left">
                 <h4 className="text-sm font-bold text-[#D8A934] flex items-center gap-2">
@@ -779,6 +802,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </span>
                 </label>
 
+{!LOCAL_PAYMENT_SANDBOX && (
                 <label className="flex items-start gap-3 rounded-xl border border-[#30391E] p-3 cursor-pointer hover:bg-[#182719]">
                   <input
                     type="radio"
@@ -792,6 +816,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <span className="block text-[11px] text-[#65705A] mt-1">ใช้ช่องทางเดิม และรอเจ้าหน้าที่ตรวจสอบยอดเงินจริงก่อนออกบัตร</span>
                   </span>
                 </label>
+                )}
               </div>
 
               {/* Actions */}
@@ -808,10 +833,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <button
                   type="button"
                   onClick={handleProceedToPayment}
-                  disabled={isCreatingOrder}
+                  disabled={isCreatingOrder || (LOCAL_PAYMENT_SANDBOX && !paymentCapabilities.ready)}
                   className="cursor-pointer flex items-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-6 py-3.5 rounded-xl shadow-lg shadow-[#D8A934]/25 transition-all disabled:opacity-50"
                 >
-                  {isCreatingOrder ? 'กำลังสร้างคำสั่งซื้อ...' : 'ยืนยันและไปหน้าชำระเงิน'}
+                  {isCreatingOrder ? 'กำลังสร้างคำสั่งซื้อ...' : (LOCAL_PAYMENT_SANDBOX && !paymentCapabilities.ready) ? 'รอตั้งค่า Test Mode' : 'ยืนยันและไปหน้าชำระเงิน'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
