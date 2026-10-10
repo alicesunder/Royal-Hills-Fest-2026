@@ -249,8 +249,20 @@ begin
   end if;
 
   if v_order.payment_provider is distinct from 'omise'
-     or v_order.provider_payment_id is distinct from p_provider_payment_id then
+     or (
+       v_order.provider_payment_id is distinct from p_provider_payment_id
+       and v_order.provider_payment_id not like 'creating:%'
+     ) then
     raise exception 'Provider payment does not match the active order charge' using errcode = '22023';
+  end if;
+
+  -- The verified webhook may win a rare race against the charge-link request.
+  if v_order.provider_payment_id like 'creating:%' then
+    update public.orders
+       set provider_payment_id = p_provider_payment_id,
+           updated_at = pg_catalog.now()
+     where id = v_order.id;
+    v_order.provider_payment_id := p_provider_payment_id;
   end if;
 
   if p_amount_subunits <> pg_catalog.round(v_order.amount_total_thb * 100)::bigint then
