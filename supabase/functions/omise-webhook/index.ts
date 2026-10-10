@@ -24,9 +24,15 @@ function serverConfig() {
   const secretKey = keyMap.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const omiseKey = (Deno.env.get("OMISE_SECRET_KEY") || "").trim();
   const webhookSecret = (Deno.env.get("OMISE_WEBHOOK_SECRET") || "").trim();
+  // Fail closed: test is the default, and the API key prefix must match the mode.
+  const omiseMode = (Deno.env.get("OMISE_MODE") || "test").trim().toLowerCase();
+  const expectedPrefix = omiseMode === "test" ? "skey_test_" : omiseMode === "live" ? "skey_live_" : "";
   if (!url || !secretKey) throw new Error("Supabase server configuration is missing");
   if (!omiseKey || !webhookSecret) throw new Error("Omise webhook configuration is missing");
-  return { url, secretKey, omiseKey, webhookSecret };
+  if (!expectedPrefix || !omiseKey.startsWith(expectedPrefix)) {
+    throw new Error("Omise API key does not match the configured payment mode");
+  }
+  return { url, secretKey, omiseKey, webhookSecret, omiseMode };
 }
 
 function serverHeaders(secretKey: string, extra: Record<string, string> = {}) {
@@ -162,6 +168,9 @@ Deno.serve(async (request: Request) => {
 
     // Never trust the webhook payload's payment status alone; fetch the charge from Opn.
     const charge = await omiseGetCharge(chargeId, config.omiseKey);
+    if (charge.livemode !== (config.omiseMode === "live")) {
+      throw new Error("Omise charge mode does not match configured payment mode");
+    }
     if (charge.id !== chargeId || charge.status !== "successful" || charge.paid !== true) {
       return Response.json({ received: true, ignored: true }, { status: 200, headers: corsHeaders });
     }
