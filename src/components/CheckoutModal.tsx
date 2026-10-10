@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, Order, AttendeeInfo } from '../types';
-import { PROMPTPAY_QR_URL, ticketingApiService } from '../services/ticketingApiService';
+import { PROMPTPAY_QR_URL, ticketingApiService, PaymentCapabilities, ProviderPayment } from '../services/ticketingApiService';
 import {
   X,
   ArrowRight,
@@ -58,7 +58,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // VIP Tables Attendee Rosters: 1 entry per VIP table, each has 6 attendee names
   const [vipTablesRoster, setVipTablesRoster] = useState<{ tableIndex: number; attendeeNames: string[] }[]>([]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'QR_PROMPTPAY' | 'CREDIT_CARD' | 'BANK_TRANSFER'>('QR_PROMPTPAY');
+  const [paymentMethod, setPaymentMethod] = useState<'QR_PROMPTPAY' | 'MOBILE_BANKING' | 'BANK_TRANSFER'>('BANK_TRANSFER');
+  const [selectedBankType, setSelectedBankType] = useState('mobile_banking_kbank');
+  const [paymentCapabilities, setPaymentCapabilities] = useState<PaymentCapabilities>({ promptpay: false, mobileBanking: false, mobileBankingBanks: [], ready: false });
+  const [providerPayment, setProviderPayment] = useState<ProviderPayment | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Server-created order and manual PromptPay proof workflow.
@@ -75,6 +78,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [paymentNotice, setPaymentNotice] = useState('');
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [copiedLookupDetails, setCopiedLookupDetails] = useState(false);
+
+  // Ask the server which automated payment channels have been enabled by the event organizer.
+  useEffect(() => {
+    let cancelled = false;
+    ticketingApiService.getPaymentCapabilities()
+      .then((capabilities) => {
+        if (cancelled) return;
+        setPaymentCapabilities(capabilities);
+        if (capabilities.promptpay) {
+          setPaymentMethod((current) => current === 'BANK_TRANSFER' ? 'QR_PROMPTPAY' : current);
+        } else if (!capabilities.mobileBanking) {
+          setPaymentMethod('BANK_TRANSFER');
+        }
+        if (capabilities.mobileBankingBanks.length > 0) {
+          setSelectedBankType((current) =>
+            capabilities.mobileBankingBanks.some((bank) => bank.type === current)
+              ? current
+              : capabilities.mobileBankingBanks[0].type
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPaymentCapabilities({ promptpay: false, mobileBanking: false, mobileBankingBanks: [], ready: false });
+          setPaymentMethod('BANK_TRANSFER');
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Initialize Normal attendees
   useEffect(() => {
@@ -178,9 +210,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const handleProceedToPayment = async () => {
     setCheckoutError('');
     setPaymentNotice('');
+    setProviderPayment(null);
     setIsCreatingOrder(true);
     try {
-      // Keep the same idempotency key and lookup token when the network fails and the buyer retries.
+      // Reuse the same idempotency key on retry to prevent duplicate orders.
       const credentials = checkoutCredentials || ticketingApiService.createCredentials();
       if (!checkoutCredentials) setCheckoutCredentials(credentials);
       const result = await ticketingApiService.createOrder({
@@ -200,9 +233,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setPaymentProofFile(null);
       setPaymentNotice('');
       setTimeLeftSeconds(Math.max(0, Math.floor((result.order.expiresAt - Date.now()) / 1000)));
-      setStep(result.order.paymentStatus === 'PAID' ? 4 : 3);
+
+      if (result.order.paymentStatus === 'PAID') {
+        setStep(4);
+        return;
+      }
+
+      if (paymentMethod !== 'BANK_TRANSFER') {
+        const providerResult = await ticketingApiService.createProviderPayment({
+          orderNumber: result.credentials.orderNumber,
+          lookupToken: result.credentials.lookupToken,
+          paymentMethod,
+          ...(paymentMethod === 'MOBILE_BANKING' ? { bankType: selectedBankType } : {}),
+        });
+        setProviderPayment(providerResult);
+        setStep(3);
+
+        if (paymentMethod === 'MOBILE_BANKING') {
+          if (!providerResult.authorizeUrl) {
+            setCheckoutError('ผู้ให้บริการยังไม่ส่งลิงก์ยืนยันการชำระเงิน กรุณาตรวจสอบสถานะกับผู้จัดงาน');
+            return;
+          }
+          // Redirect immediately while the browser still has the user-initiated checkout action.
+          window.location.assign(providerResult.authorizeUrl);
+          return;
+        }
+      } else {
+        setStep(3);
+      }
     } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : 'ไม่สามารถสร้างคำสั่งซื้อได้ กรุณาลองใหม่');
+      setCheckoutError(error instanceof Error ? error.message : 'ไม่สามารถสร้างคำสั่งซื้อหรือรายการชำระเงินได้ กรุณาลองใหม่');
     } finally {
       setIsCreatingOrder(false);
     }
@@ -620,19 +680,70 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {checkoutError && <p role="alert" className="rounded-lg border border-red-500/40 bg-red-950/20 p-3 text-xs text-red-200">{checkoutError}</p>}
 
-              {/* Manual PromptPay: no gateway or card payments wired yet. */}
-              <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 space-y-2">
-                <div className="flex items-center gap-2 text-[#D8A934] font-bold text-sm">
-                  <QrCode className="w-4 h-4" />
-                  ชำระเงินผ่าน PromptPay
-                </div>
-                <p className="text-xs text-[#F3E7C8]/80 leading-relaxed">
-                  โอนตามยอดคำสั่งซื้อ แล้วแนบสลิปเพื่อรอเจ้าหน้าที่ตรวจสอบจากรายการเงินจริงในบัญชี
-                  ระบบจะออกบัตรหลังได้รับการอนุมัติเท่านั้น
-                </p>
-                <p className="text-[11px] text-[#65705A]">
-                  ขณะนี้ยังไม่เปิดรับชำระผ่านบัตรเครดิตหรือธนาคารอัตโนมัติ
-                </p>
+              {/* Payment method selection. Automated channels stay unavailable until server-side Opn secrets and merchant capabilities are configured. */}
+              <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 space-y-3 text-left">
+                <h4 className="text-sm font-bold text-[#D8A934] flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" /> เลือกช่องทางชำระเงิน
+                </h4>
+
+                <label className={`flex items-start gap-3 rounded-xl border p-3 ${paymentCapabilities.promptpay ? 'border-[#D8A934]/50 cursor-pointer hover:bg-[#182719]' : 'border-[#30391E] opacity-60 cursor-not-allowed'}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={paymentMethod === 'QR_PROMPTPAY'}
+                    disabled={!paymentCapabilities.promptpay}
+                    onChange={() => setPaymentMethod('QR_PROMPTPAY')}
+                    className="mt-1 accent-[#D8A934]"
+                  />
+                  <span className="flex-1">
+                    <span className="block text-xs font-bold text-[#FFF9ED]">PromptPay QR · ยืนยันเงินอัตโนมัติ</span>
+                    <span className="block text-[11px] text-[#65705A] mt-1">
+                      {paymentCapabilities.promptpay ? 'สแกน QR ตามยอดคำสั่งซื้อ และระบบจะตรวจสอบสถานะให้อัตโนมัติ' : 'รอผู้จัดงานตั้งค่า API Key และเปิดใช้ PromptPay กับผู้ให้บริการ'}
+                    </span>
+                  </span>
+                </label>
+
+                <label className={`flex items-start gap-3 rounded-xl border p-3 ${paymentCapabilities.mobileBanking ? 'border-[#D8A934]/50 cursor-pointer hover:bg-[#182719]' : 'border-[#30391E] opacity-60 cursor-not-allowed'}`}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={paymentMethod === 'MOBILE_BANKING'}
+                    disabled={!paymentCapabilities.mobileBanking}
+                    onChange={() => setPaymentMethod('MOBILE_BANKING')}
+                    className="mt-1 accent-[#D8A934]"
+                  />
+                  <span className="flex-1">
+                    <span className="block text-xs font-bold text-[#FFF9ED]">Mobile Banking · ไปยังแอปธนาคาร</span>
+                    <span className="block text-[11px] text-[#65705A] mt-1">
+                      {paymentCapabilities.mobileBanking ? 'เลือกธนาคาร แล้วทำรายการผ่านหน้าชำระเงินของผู้ให้บริการ' : 'รอผู้จัดงานเปิดใช้ Mobile Banking กับผู้ให้บริการ'}
+                    </span>
+                    {paymentCapabilities.mobileBanking && paymentMethod === 'MOBILE_BANKING' && (
+                      <select
+                        value={selectedBankType}
+                        onChange={(event) => setSelectedBankType(event.target.value)}
+                        className="mt-3 w-full rounded-lg border border-[#30391E] bg-[#10140F] px-3 py-2 text-xs text-[#FFF9ED]"
+                      >
+                        {paymentCapabilities.mobileBankingBanks.map((bank) => (
+                          <option key={bank.type} value={bank.type}>{bank.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-xl border border-[#30391E] p-3 cursor-pointer hover:bg-[#182719]">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={paymentMethod === 'BANK_TRANSFER'}
+                    onChange={() => setPaymentMethod('BANK_TRANSFER')}
+                    className="mt-1 accent-[#D8A934]"
+                  />
+                  <span className="flex-1">
+                    <span className="block text-xs font-bold text-[#FFF9ED]">โอน PromptPay พร้อมแนบสลิป</span>
+                    <span className="block text-[11px] text-[#65705A] mt-1">ใช้ช่องทางเดิม และรอเจ้าหน้าที่ตรวจสอบยอดเงินจริงก่อนออกบัตร</span>
+                  </span>
+                </label>
               </div>
 
               {/* Actions */}
@@ -676,22 +787,55 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   ฿{createdOrder.totalAmount.toLocaleString()} <span className="text-xs text-[#65705A]">THB</span>
                 </p>
 
-                {/* Use only the exact registered PromptPay QR image; never synthesize a fake payload. */}
-                {PROMPTPAY_QR_URL ? (
-                  <div className="space-y-3">
-                    <div className="p-3 bg-white rounded-xl inline-block shadow-md">
-                      <img src={PROMPTPAY_QR_URL} alt="QR PromptPay สำหรับโอนเงินเข้าบัญชีผู้จัดงาน" className="w-52 h-52 mx-auto object-contain" />
+                {paymentMethod === 'BANK_TRANSFER' ? (
+                  PROMPTPAY_QR_URL ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-white rounded-xl inline-block shadow-md">
+                        <img src={PROMPTPAY_QR_URL} alt="QR PromptPay สำหรับชำระเงิน" className="w-52 h-52 mx-auto object-contain" />
+                      </div>
+                      <p className="text-[11px] text-[#F3E7C8]/80">
+                        โอนตามยอดคำสั่งซื้อ แล้วกรอกเลขอ้างอิงและแนบสลิปด้านล่าง
+                      </p>
+                      <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                        ช่องทางนี้ยังต้องรอเจ้าหน้าที่ตรวจสอบรายการเงินจริงก่อนออกบัตร
+                      </p>
                     </div>
-                    <p className="text-[11px] text-[#F3E7C8]/80">
-                      สแกนด้วยแอปธนาคาร แล้วกรอกยอดให้ตรงกับคำสั่งซื้อด้านบน
-                    </p>
-                    <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                      QR นี้ใช้สำหรับรับโอนโดยตรง ไม่ได้ตรวจจับยอดโอนอัตโนมัติ กรุณาตรวจสอบชื่อบัญชีและยอดก่อนยืนยันการโอน
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-left text-xs text-amber-100">
+                      ผู้ดูแลยังไม่ได้ตั้งค่าภาพ QR PromptPay กรุณาติดต่อผู้จัดงานก่อนโอนเงิน
+                    </div>
+                  )
+                ) : paymentMethod === 'QR_PROMPTPAY' ? (
+                  providerPayment?.qrImageUrl ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-white rounded-xl inline-block shadow-md">
+                        <img src={providerPayment.qrImageUrl} alt="QR PromptPay สำหรับคำสั่งซื้อนี้" className="w-56 h-56 mx-auto object-contain" />
+                      </div>
+                      <p className="text-[11px] text-[#F3E7C8]/80">สแกน QR นี้ด้วยแอปธนาคาร ระบบผูกยอดและเลขคำสั่งซื้อไว้แล้ว</p>
+                      <p className="text-[11px] text-emerald-200">หลังชำระสำเร็จ ระบบจะยืนยันเงินและออกตั๋วให้อัตโนมัติ ไม่ต้องแนบสลิป</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-xs text-amber-100">
+                      {providerPayment?.chargeStatus === 'failed' || providerPayment?.chargeStatus === 'expired'
+                        ? 'รายการชำระเงินนี้ไม่สำเร็จหรือหมดอายุ กรุณาติดต่อผู้จัดงานก่อนสร้างรายการใหม่'
+                        : 'กำลังโหลด QR จากผู้ให้บริการ หากยังไม่แสดง กรุณากดตรวจสอบสถานะอีกครั้ง'}
+                    </div>
+                  )
                 ) : (
-                  <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-left text-xs text-amber-100">
-                    ผู้ดูแลยังไม่ได้ตั้งค่าภาพ QR PromptPay กรุณาติดต่อผู้จัดงาน และอย่าโอนเงินจนกว่าจะยืนยัน QR ทางการ
+                  <div className="space-y-3">
+                    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-[#D8A934]/40 bg-[#182719]">
+                      <Building className="h-10 w-10 text-[#D8A934]" />
+                    </div>
+                    <p className="text-sm font-bold text-[#FFF9ED]">ชำระผ่าน {providerPayment?.bankName || 'Mobile Banking'}</p>
+                    <p className="text-xs text-[#F3E7C8]/80">ระบบจะเปิดหน้าผู้ให้บริการเพื่อให้คุณยืนยันผ่านแอปธนาคาร หลังชำระสำเร็จให้กลับมาหน้านี้เพื่อรับตั๋ว</p>
+                    {providerPayment?.authorizeUrl && (
+                      <a
+                        href={providerPayment.authorizeUrl}
+                        className="inline-flex items-center justify-center rounded-lg bg-[#D8A934] px-5 py-3 text-xs font-bold text-[#10140F]"
+                      >
+                        เปิดหน้าชำระเงินอีกครั้ง
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
@@ -718,65 +862,76 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </button>
               </div>
 
-              {createdOrder.paymentStatus === 'VERIFYING' ? (
-                <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-left space-y-2">
-                  <p className="text-sm font-bold text-emerald-300">ได้รับหลักฐานแล้ว · รอตรวจสอบ</p>
-                  <p className="text-xs leading-relaxed text-[#F3E7C8]/80">
-                    เจ้าหน้าที่จะตรวจสอบยอดเงินที่เข้าบัญชีจริงก่อนอนุมัติและออกบัตร
+              {paymentMethod === 'BANK_TRANSFER' ? (
+                createdOrder.paymentStatus === 'VERIFYING' ? (
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-left space-y-2">
+                    <p className="text-sm font-bold text-emerald-300">ได้รับหลักฐานแล้ว · รอตรวจสอบ</p>
+                    <p className="text-xs leading-relaxed text-[#F3E7C8]/80">เจ้าหน้าที่จะตรวจสอบยอดเงินจริงก่อนอนุมัติและออกบัตร</p>
+                    {paymentNotice && <p className="text-xs text-emerald-200">{paymentNotice}</p>}
+                    <button type="button" onClick={handleRefreshPaymentStatus} disabled={isRefreshingStatus} className="w-full py-3 rounded-xl border border-emerald-500/40 text-emerald-200 hover:bg-emerald-950/40 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-2">
+                      <ShieldCheck className="w-4 h-4" />
+                      {isRefreshingStatus ? 'กำลังตรวจสอบ...' : 'ตรวจสอบสถานะอีกครั้ง'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-2 text-left">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#F3E7C8] mb-1">เลขอ้างอิงการโอน / Transaction reference</label>
+                      <input
+                        value={paymentReference}
+                        onChange={(e) => setPaymentReference(e.target.value)}
+                        maxLength={100}
+                        placeholder="กรอกเลขอ้างอิงจากสลิป"
+                        className="w-full bg-[#10140F] border border-[#30391E] rounded-lg px-3 py-3 text-sm text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[#F3E7C8] mb-1">แนบภาพสลิปการโอน (JPG, PNG หรือ WebP ไม่เกิน 5 MB)</label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
+                        className="block w-full text-xs text-[#F3E7C8] file:mr-3 file:rounded-lg file:border-0 file:bg-[#D8A934] file:px-3 file:py-2 file:font-bold file:text-[#10140F] file:cursor-pointer"
+                      />
+                      {paymentProofFile && <p className="mt-1 text-[11px] text-[#65705A]">ไฟล์ที่เลือก: {paymentProofFile.name} ({(paymentProofFile.size / 1024 / 1024).toFixed(2)} MB)</p>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSubmitPaymentProof}
+                      disabled={isSubmittingProof || !PROMPTPAY_QR_URL || timeLeftSeconds <= 0}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-[#D8A934] to-[#c4982c] hover:brightness-110 text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      {isSubmittingProof ? 'กำลังส่งหลักฐาน...' : 'แจ้งโอนเงินและส่งสลิป'}
+                    </button>
+                    <p className="text-[11px] text-[#65705A] leading-relaxed">การแนบสลิปเป็นเพียงการแจ้งโอน ระบบจะยังไม่ออกบัตรจนกว่าเจ้าหน้าที่ตรวจยอดเงินจริงและอนุมัติ</p>
+                  </div>
+                )
+              ) : (
+                <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 text-left space-y-3">
+                  <p className="text-sm font-bold text-[#D8A934]">
+                    {createdOrder.paymentStatus === 'PAID' ? 'ชำระเงินยืนยันแล้ว' : 'รอการยืนยันการชำระเงินอัตโนมัติ'}
                   </p>
+                  <p className="text-xs leading-relaxed text-[#F3E7C8]/80">
+                    {createdOrder.paymentStatus === 'PAID'
+                      ? 'ชำระเงินสำเร็จแล้ว ระบบกำลังเตรียมตั๋วดิจิทัล'
+                      : providerPayment?.chargeStatus === 'failed' || providerPayment?.chargeStatus === 'expired'
+                        ? 'รายการชำระเงินไม่สำเร็จหรือหมดอายุ กรุณาติดต่อผู้จัดงานเพื่อดำเนินการต่อ อย่าชำระซ้ำจาก QR เดิม'
+                        : 'ระบบกำลังตรวจสอบสถานะจากผู้ให้บริการเป็นระยะ ไม่ต้องแนบสลิปและไม่ต้องส่งหลักฐาน'}
+                  </p>
+                  {providerPayment?.chargeStatus && (
+                    <p className="text-[11px] text-[#65705A]">สถานะจากผู้ให้บริการ: {providerPayment.chargeStatus}</p>
+                  )}
                   {paymentNotice && <p className="text-xs text-emerald-200">{paymentNotice}</p>}
                   <button
                     type="button"
                     onClick={handleRefreshPaymentStatus}
                     disabled={isRefreshingStatus}
-                    className="w-full py-3 rounded-xl border border-emerald-500/40 text-emerald-200 hover:bg-emerald-950/40 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl border border-[#D8A934]/40 text-[#D8A934] hover:bg-[#182719] disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-2"
                   >
                     <ShieldCheck className="w-4 h-4" />
-                    {isRefreshingStatus ? 'กำลังตรวจสอบ...' : 'ตรวจสอบสถานะอีกครั้ง'}
+                    {isRefreshingStatus ? 'กำลังตรวจสอบ...' : 'ตรวจสอบสถานะการชำระเงิน'}
                   </button>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2 text-left">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3E7C8] mb-1">
-                      เลขอ้างอิงการโอน / Transaction reference
-                    </label>
-                    <input
-                      value={paymentReference}
-                      onChange={(e) => setPaymentReference(e.target.value)}
-                      maxLength={100}
-                      placeholder="กรอกเลขอ้างอิงจากสลิป"
-                      className="w-full bg-[#10140F] border border-[#30391E] rounded-lg px-3 py-3 text-sm text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3E7C8] mb-1">
-                      แนบภาพสลิปการโอน (JPG, PNG หรือ WebP ไม่เกิน 5 MB)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
-                      className="block w-full text-xs text-[#F3E7C8] file:mr-3 file:rounded-lg file:border-0 file:bg-[#D8A934] file:px-3 file:py-2 file:font-bold file:text-[#10140F] file:cursor-pointer"
-                    />
-                    {paymentProofFile && (
-                      <p className="mt-1 text-[11px] text-[#65705A]">
-                        ไฟล์ที่เลือก: {paymentProofFile.name} ({(paymentProofFile.size / 1024 / 1024).toFixed(2)} MB)
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSubmitPaymentProof}
-                    disabled={isSubmittingProof || !PROMPTPAY_QR_URL || timeLeftSeconds <= 0}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-[#D8A934] to-[#c4982c] hover:brightness-110 text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                    {isSubmittingProof ? 'กำลังส่งหลักฐาน...' : 'แจ้งโอนเงินและส่งสลิป'}
-                  </button>
-                  <p className="text-[11px] text-[#65705A] leading-relaxed">
-                    การแนบสลิปเป็นเพียงการแจ้งโอน ไม่ถือว่ายืนยันการชำระเงิน ระบบจะยังไม่ออกบัตรจนกว่าแอดมินตรวจยอดเงินและกดยืนยัน
-                  </p>
                 </div>
               )}
 
