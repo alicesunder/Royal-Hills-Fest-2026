@@ -108,6 +108,46 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     return () => { cancelled = true; };
   }, []);
 
+  // Poll the provider and our server-side order state while an automated payment is pending.
+  useEffect(() => {
+    if (step !== 3 || paymentMethod === 'BANK_TRANSFER' || !createdOrder || !lookupToken) return;
+    let cancelled = false;
+    let busy = false;
+
+    const refresh = async () => {
+      if (busy || cancelled) return;
+      busy = true;
+      try {
+        const payment = await ticketingApiService.getProviderPayment(createdOrder.id, lookupToken);
+        if (cancelled) return;
+        setProviderPayment(payment);
+
+        const result = await ticketingApiService.getOrder(createdOrder.id, lookupToken);
+        if (cancelled) return;
+        setCreatedOrder(result.order);
+        if (result.order.paymentStatus === 'PAID') {
+          setPaymentNotice('ยืนยันการชำระเงินสำเร็จ กำลังเปิดบัตรดิจิทัลของคุณ');
+          setStep(4);
+        } else if (result.order.paymentStatus === 'VERIFYING') {
+          setPaymentNotice('ผู้ให้บริการส่งสถานะที่ต้องตรวจสอบเพิ่มเติม กรุณารอผู้จัดงานยืนยัน');
+        } else if (payment.chargeStatus === 'failed' || payment.chargeStatus === 'expired') {
+          setPaymentNotice('รายการชำระเงินไม่สำเร็จหรือหมดอายุ กรุณาติดต่อผู้จัดงานก่อนชำระใหม่');
+        }
+      } catch {
+        // Temporary network/provider errors are retried on the next interval and never mark an order paid.
+      } finally {
+        busy = false;
+      }
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [step, paymentMethod, createdOrder?.id, lookupToken]);
+
   // Initialize Normal attendees
   useEffect(() => {
     const list: AttendeeInfo[] = [];
@@ -309,14 +349,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setCheckoutError('');
     setIsRefreshingStatus(true);
     try {
+      if (paymentMethod !== 'BANK_TRANSFER') {
+        try {
+          const payment = await ticketingApiService.getProviderPayment(createdOrder.id, lookupToken);
+          setProviderPayment(payment);
+        } catch {
+          // The payment status query below remains the source of truth for customer-facing state.
+        }
+      }
       const refreshed = await ticketingApiService.getOrder(createdOrder.id, lookupToken);
       setCreatedOrder(refreshed.order);
       if (refreshed.order.paymentStatus === 'PAID') {
         setStep(4);
       } else if (refreshed.order.paymentStatus === 'VERIFYING') {
-        setPaymentNotice('ได้รับหลักฐานแล้ว ยังรอเจ้าหน้าที่ตรวจสอบยอดเงินในบัญชี');
+        setPaymentNotice('รายการนี้ต้องให้เจ้าหน้าที่ตรวจสอบก่อนออกบัตร กรุณารอผลตรวจสอบ');
       } else if (refreshed.order.paymentStatus === 'PENDING' && refreshed.reviewNote) {
-        setPaymentNotice('เจ้าหน้าที่ปฏิเสธหลักฐาน: ' + refreshed.reviewNote + ' · กรุณาส่งสลิปใหม่ภายใน 15 นาที');
+        setPaymentNotice('มีหมายเหตุเกี่ยวกับคำสั่งซื้อ: ' + refreshed.reviewNote);
       } else {
         setPaymentNotice('สถานะล่าสุด: ' + (
           refreshed.order.paymentStatus === 'CANCELLED' ? 'ยกเลิกแล้ว' :
