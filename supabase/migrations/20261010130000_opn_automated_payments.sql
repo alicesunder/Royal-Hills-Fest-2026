@@ -248,10 +248,13 @@ begin
     );
   end if;
 
-  if v_order.payment_provider is distinct from 'omise'
-     or (
-       v_order.provider_payment_id is distinct from p_provider_payment_id
-       and v_order.provider_payment_id not like 'creating:%'
+  if v_order.payment_provider is distinct from 'omise' then
+    raise exception 'Provider payment does not match the active order charge' using errcode = '22023';
+  end if;
+  if v_order.provider_payment_id is distinct from p_provider_payment_id
+     and (
+       v_order.provider_payment_id is null
+       or v_order.provider_payment_id not like 'creating:%'
      ) then
     raise exception 'Provider payment does not match the active order charge' using errcode = '22023';
   end if;
