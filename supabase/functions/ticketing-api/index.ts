@@ -528,6 +528,46 @@ async function getOrderWithProviderRefresh(orderNumber: string, lookupToken: str
   return result;
 }
 
+
+async function getProviderPayment(body: JsonObject) {
+  const orderNumber = text(body.orderNumber, 40);
+  const lookupToken = text(body.lookupToken, 128);
+  const customerData = await getCustomerOrder(orderNumber, lookupToken) as JsonObject;
+  const order = (customerData.order && typeof customerData.order === "object" ? customerData.order : {}) as JsonObject;
+  if (text(order.status, 40) === "paid") {
+    return { orderNumber, chargeStatus: "successful", alreadyPaid: true };
+  }
+  if (text(order.status, 40) !== "pending") {
+    throw new ApiError(409, "คำสั่งซื้อนี้ไม่ได้รอชำระเงินอัตโนมัติแล้ว");
+  }
+  if (!omiseSettings().secretKey) {
+    throw new ApiError(503, "ระบบรับชำระอัตโนมัติยังไม่ได้ตั้งค่า");
+  }
+
+  const query = new URLSearchParams();
+  query.set("select", "payment_provider,provider_payment_id");
+  query.set("order_number", "eq." + orderNumber);
+  query.set("lookup_token_hash", "eq." + await hashHex(lookupToken));
+  query.set("limit", "1");
+  const rows = await rest("orders?" + query.toString()) as JsonObject[];
+  const payment = Array.isArray(rows) ? rows[0] : null;
+  if (!payment || payment.payment_provider !== "omise" ||
+      typeof payment.provider_payment_id !== "string" ||
+      !/^chrg_(test_)?[A-Za-z0-9]+$/.test(payment.provider_payment_id)) {
+    throw new ApiError(404, "ยังไม่มีรายการชำระเงินอัตโนมัติสำหรับคำสั่งซื้อนี้");
+  }
+
+  const charge = await omiseRequest("/charges/" + encodeURIComponent(payment.provider_payment_id)) as JsonObject;
+  const metadata = (charge.metadata && typeof charge.metadata === "object" ? charge.metadata : {}) as JsonObject;
+  if (text(metadata.order_number, 40) !== orderNumber ||
+      Number(charge.amount || 0) !== Math.round(Number(order.amount_total_thb || 0) * 100) ||
+      text(charge.currency, 8) !== "THB") {
+    throw new ApiError(409, "รายการชำระเงินไม่ตรงกับคำสั่งซื้อนี้ กรุณาติดต่อผู้จัดงาน");
+  }
+  await completeIfSuccessful(charge, orderNumber);
+  return paymentResponse(charge, orderNumber);
+}
+
 async function submitProof(form: FormData) {
   const orderNumber = text(form.get("orderNumber"), 40);
   const lookupToken = text(form.get("lookupToken"), 128);
@@ -703,6 +743,9 @@ Deno.serve(async (request: Request) => {
         break;
       case "create-provider-payment":
         result = await createProviderPayment(body);
+        break;
+      case "get-provider-payment":
+        result = await getProviderPayment(body);
         break;
       case "submit-proof":
         if (!form) throw new ApiError(400, "รูปแบบข้อมูลหลักฐานไม่ถูกต้อง");
