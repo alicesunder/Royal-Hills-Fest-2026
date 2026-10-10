@@ -308,9 +308,14 @@ async function omiseRequest(path: string, params?: URLSearchParams) {
   const result = await responseJson(response) as JsonObject | null;
   if (!response.ok || !result || typeof result !== "object") {
     const providerMessage = result && typeof result.message === "string" ? result.message : "";
-    console.error("Omise API request failed:", { status: response.status, path, message: providerMessage.slice(0, 160) });
-    throw new ApiError(response.status >= 400 && response.status < 500 ? 422 : 502,
-      "ผู้ให้บริการรับชำระเงินไม่สามารถสร้างหรืออ่านรายการได้ กรุณาลองใหม่หรือติดต่อผู้จัดงาน");
+    const providerCode = result && typeof result.code === "string" ? result.code : "";
+    console.error("Omise API request failed:", { status: response.status, path, code: providerCode.slice(0, 80), message: providerMessage.slice(0, 160) });
+    // Reusing a ref_id can mean a previous charge exists; preserve the lock in that ambiguous case.
+    const duplicateReference = /duplicate.*ref|ref.*duplicate/i.test(providerCode + " " + providerMessage);
+    const errorStatus = duplicateReference ? 409 : response.status >= 400 && response.status < 500 ? 422 : 502;
+    throw new ApiError(errorStatus, duplicateReference
+      ? "คำขอชำระเงินก่อนหน้าอาจสร้างรายการไว้แล้ว กรุณารอสักครู่และตรวจสอบสถานะคำสั่งซื้อ"
+      : "ผู้ให้บริการรับชำระเงินไม่สามารถสร้างหรืออ่านรายการได้ กรุณาลองใหม่หรือติดต่อผู้จัดงาน");
   }
   return result;
 }
@@ -441,6 +446,7 @@ async function createProviderPayment(body: JsonObject) {
     throw new ApiError(500, "ระบบไม่สามารถเริ่มรายการชำระเงินได้");
   }
 
+  let providerChargeRequestStarted = false;
   let chargeCreated = false;
   try {
     const publicSiteUrl = (Deno.env.get("PUBLIC_SITE_URL") || "https://royalhillsfest2026-three.vercel.app").replace(/\/+$/, "");
@@ -453,6 +459,7 @@ async function createProviderPayment(body: JsonObject) {
     params.set("currency", "THB");
     params.set("source[type]", paymentMethod === "QR_PROMPTPAY" ? "promptpay" : bankType);
     params.set("description", "ROYAL HILLS FEST 2026 " + orderNumber);
+    params.set("ref_id", "RHF26-" + orderNumber);
     params.set("metadata[order_number]", orderNumber);
     params.set("metadata[payment_method]", paymentMethod);
     if (paymentMethod === "MOBILE_BANKING") params.set("return_uri", returnUrl.toString());
@@ -461,6 +468,7 @@ async function createProviderPayment(body: JsonObject) {
     const supabaseUrl = config().url;
     params.append("webhook_endpoints[]", supabaseUrl + "/functions/v1/omise-webhook");
 
+    providerChargeRequestStarted = true;
     const charge = await omiseRequest("/charges", params);
     chargeCreated = true;
     const chargeId = text(charge.id, 80);
@@ -482,7 +490,10 @@ async function createProviderPayment(body: JsonObject) {
     await completeIfSuccessful(charge, orderNumber);
     return paymentResponse(charge, orderNumber);
   } catch (error) {
-    if (!chargeCreated) {
+    // Release a claim only when no provider call was made or the provider definitely rejected it.
+    // Preserve ambiguous timeouts/5xx/duplicate-ref requests to avoid accepting duplicate charges.
+    const definiteRejection = error instanceof ApiError && error.status === 422;
+    if (!providerChargeRequestStarted || (!chargeCreated && definiteRejection)) {
       await rpc("ticketing_release_provider_payment_claim", {
         p_order_number: orderNumber,
         p_lookup_token_hash: lookupTokenHash,
