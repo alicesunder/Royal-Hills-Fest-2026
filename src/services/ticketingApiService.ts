@@ -28,6 +28,29 @@ export interface TicketingOrderResult {
 
 type JsonRecord = Record<string, unknown>;
 
+export interface PaymentCapabilities {
+  promptpay: boolean;
+  mobileBanking: boolean;
+  mobileBankingBanks: { type: string; name: string }[];
+  ready: boolean;
+}
+
+export interface ProviderPayment {
+  orderNumber: string;
+  chargeId: string;
+  amountSubunits: number;
+  currency: string;
+  chargeStatus: string;
+  paymentMethod: 'QR_PROMPTPAY' | 'MOBILE_BANKING';
+  bankType: string;
+  bankName: string | null;
+  qrImageUrl: string | null;
+  authorizeUrl: string | null;
+  expiresAt: string | null;
+  alreadyPaid?: boolean;
+}
+
+
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
 const SUPABASE_PUBLISHABLE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '');
 // The static QR preserves the original PromptPay payload decoded from the user's supplied SCB image.
@@ -284,6 +307,62 @@ export const ticketingApiService = {
     } catch {
       return [];
     }
+  },
+
+  async getPaymentCapabilities(): Promise<PaymentCapabilities> {
+    const data = await invoke('payment-capabilities', {}) as JsonRecord;
+    return {
+      promptpay: data.promptpay === true,
+      mobileBanking: data.mobileBanking === true,
+      mobileBankingBanks: Array.isArray(data.mobileBankingBanks)
+        ? data.mobileBankingBanks.filter((item): item is { type: string; name: string } =>
+            Boolean(item && typeof item === 'object' &&
+              typeof (item as JsonRecord).type === 'string' &&
+              typeof (item as JsonRecord).name === 'string'))
+        : [],
+      ready: data.ready === true,
+    };
+  },
+
+  async createProviderPayment(input: {
+    orderNumber: string;
+    lookupToken: string;
+    paymentMethod: 'QR_PROMPTPAY' | 'MOBILE_BANKING';
+    bankType?: string;
+  }): Promise<ProviderPayment> {
+    const data = await invoke('create-provider-payment', input as unknown as JsonRecord) as JsonRecord;
+    return {
+      orderNumber: String(data.orderNumber || input.orderNumber),
+      chargeId: String(data.chargeId || ''),
+      amountSubunits: Number(data.amountSubunits || 0),
+      currency: String(data.currency || 'THB'),
+      chargeStatus: String(data.chargeStatus || 'pending'),
+      paymentMethod: data.paymentMethod === 'MOBILE_BANKING' ? 'MOBILE_BANKING' : 'QR_PROMPTPAY',
+      bankType: String(data.bankType || ''),
+      bankName: typeof data.bankName === 'string' ? data.bankName : null,
+      qrImageUrl: typeof data.qrImageUrl === 'string' ? data.qrImageUrl : null,
+      authorizeUrl: typeof data.authorizeUrl === 'string' ? data.authorizeUrl : null,
+      expiresAt: typeof data.expiresAt === 'string' ? data.expiresAt : null,
+      alreadyPaid: data.alreadyPaid === true,
+    };
+  },
+
+  async getProviderPayment(orderNumber: string, lookupToken: string): Promise<ProviderPayment> {
+    const data = await invoke('get-provider-payment', { orderNumber, lookupToken }) as JsonRecord;
+    return {
+      orderNumber: String(data.orderNumber || orderNumber),
+      chargeId: String(data.chargeId || ''),
+      amountSubunits: Number(data.amountSubunits || 0),
+      currency: String(data.currency || 'THB'),
+      chargeStatus: String(data.chargeStatus || 'pending'),
+      paymentMethod: data.paymentMethod === 'MOBILE_BANKING' ? 'MOBILE_BANKING' : 'QR_PROMPTPAY',
+      bankType: String(data.bankType || ''),
+      bankName: typeof data.bankName === 'string' ? data.bankName : null,
+      qrImageUrl: typeof data.qrImageUrl === 'string' ? data.qrImageUrl : null,
+      authorizeUrl: typeof data.authorizeUrl === 'string' ? data.authorizeUrl : null,
+      expiresAt: typeof data.expiresAt === 'string' ? data.expiresAt : null,
+      alreadyPaid: data.alreadyPaid === true,
+    };
   },
 
   async getCatalog(): Promise<TicketType[]> {
