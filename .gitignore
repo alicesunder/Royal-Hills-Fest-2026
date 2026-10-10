@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local Supabase staging: never commit local schema dumps, link metadata, or keys.
+local-staging/supabase/.temp/
+local-staging/supabase/.branches/
+local-staging/supabase/migrations/20261009000000_local_baseline.sql
+local-staging/supabase/.env.local
