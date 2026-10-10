@@ -22,10 +22,11 @@ Never place server-side keys in Vite environment variables, frontend source code
 
 In Supabase Dashboard → Project `imgkvxetdnerqnipfutd` → Edge Functions → Secrets, add the following **for the environment you are testing**:
 
-- `OMISE_SECRET_KEY`: secret key copied from the Opn/Omise dashboard (start with a test key).
+- `OMISE_MODE`: set to `test` throughout development and end-to-end testing. The server defaults to `test` and rejects API key prefixes that do not match the configured mode.
+- `OMISE_SECRET_KEY`: secret key copied from the Opn/Omise dashboard. In `test` mode it must start with `skey_test_`; the server will refuse a mismatched key.
 - `OMISE_WEBHOOK_SECRET`: Base64-encoded webhook signing secret from the same test/live environment.
-- `OMISE_PROMPTPAY_ENABLED`: `true` only after PromptPay has been enabled and tested; otherwise `false`.
-- `OMISE_MOBILE_BANKING_ENABLED`: `true` only after the required Mobile Banking methods have been enabled and tested; otherwise `false`.
+- `OMISE_PROMPTPAY_ENABLED`: keep `false` until PromptPay has been enabled and the full test plan has passed.
+- `OMISE_MOBILE_BANKING_ENABLED`: keep `false` until the required Mobile Banking methods have been enabled and the full test plan has passed.
 - `PUBLIC_SITE_URL`: `https://royalhillsfest2026-three.vercel.app`.
 
 Supabase already supplies `SUPABASE_URL` and the project server key to Edge Functions. Do not create a `VITE_OMISE_SECRET_KEY`, do not store a secret key in Vercel's public frontend environment, and do not commit any secret values to the repository.
