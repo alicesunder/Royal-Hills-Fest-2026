@@ -358,7 +358,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         setBuyerName(e.target.value);
                         if (errors.buyerName) setErrors({ ...errors, buyerName: '' });
                       }}
-                      placeholder="เช่น ธนภัทร สุขสมบูรณ์"
+                      placeholder="เช่น ชัยโรจน์ สหัสภูริพัฒน์"
                       className="w-full bg-[#182719] border border-[#30391E] rounded-lg px-3 py-2 text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
                     />
                     {errors.buyerName && <p className="text-red-400 mt-1">{errors.buyerName}</p>}
@@ -376,7 +376,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           setBuyerPhone(e.target.value);
                           if (errors.buyerPhone) setErrors({ ...errors, buyerPhone: '' });
                         }}
-                        placeholder="เช่น 081-234-5678"
+                        placeholder="เช่น 0656541786"
                         className="w-full bg-[#182719] border border-[#30391E] rounded-lg px-3 py-2 text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
                       />
                       {errors.buyerPhone && <p className="text-red-400 mt-1">{errors.buyerPhone}</p>}
@@ -393,7 +393,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           setBuyerEmail(e.target.value);
                           if (errors.buyerEmail) setErrors({ ...errors, buyerEmail: '' });
                         }}
-                        placeholder="เช่น thanapat@gmail.com"
+                        placeholder="เช่น nakanosachiko1@gmail.com"
                         className="w-full bg-[#182719] border border-[#30391E] rounded-lg px-3 py-2 text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
                       />
                       <p className="text-[10px] text-[#65705A] mt-1">ใช้ค้นหาและอ้างอิงคำสั่งซื้อ · ขณะนี้ยังไม่มีการส่งบัตรทางอีเมลอัตโนมัติ</p>
