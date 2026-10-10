@@ -63,7 +63,7 @@ begin
     end if;
   end if;
 
-  v_claim_ref := 'creating:' || pg_catalog.floor(pg_catalog.extract(epoch from pg_catalog.clock_timestamp()))::bigint::text || ':' || p_attempt_token;
+  v_claim_ref := 'creating:' || pg_catalog.floor(pg_catalog.date_part('epoch', pg_catalog.clock_timestamp()))::bigint::text || ':' || p_attempt_token;
   update public.orders
      set payment_provider = 'omise',
          provider_payment_id = v_claim_ref,
