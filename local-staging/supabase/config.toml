@@ -1,0 +1,46 @@
+project_id = "rhf26local"
+
+[api]
+enabled = true
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000", "http://localhost:3000"]
+enable_signup = true
+jwt_expiry = 3600
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.buckets.payment-proofs]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[functions.ticketing-api]
+enabled = true
+verify_jwt = false
+entrypoint = "../../supabase/functions/ticketing-api/index.ts"
+
+[functions.omise-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "../../supabase/functions/omise-webhook/index.ts"
