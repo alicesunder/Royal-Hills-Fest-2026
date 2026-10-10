@@ -91,7 +91,7 @@ export interface Order {
   }[];
   totalQuantity: number;
   totalAmount: number; // (normalQuantity * 555) + (vipTableQuantity * 5555)
-  paymentMethod: 'QR_PROMPTPAY' | 'CREDIT_CARD' | 'BANK_TRANSFER';
+  paymentMethod: 'QR_PROMPTPAY' | 'MOBILE_BANKING' | 'CREDIT_CARD' | 'BANK_TRANSFER';
   paymentStatus: PaymentStatus;
   createdAt: number;
   expiresAt: number; // 15-minute countdown for payment
