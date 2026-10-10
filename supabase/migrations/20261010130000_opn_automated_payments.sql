@@ -12,7 +12,6 @@ as $function$
 declare
   v_order public.orders%rowtype;
   v_claim_ref text;
-  v_started_epoch bigint;
 begin
   if p_order_number is null or length(p_order_number) > 40
      or p_lookup_token_hash is null or length(p_lookup_token_hash) <> 64
@@ -51,16 +50,10 @@ begin
     );
   end if;
 
+  -- Never take over an ambiguous provider request automatically. Its response may have
+  -- been lost after the charge was created; retries must not create a second charge.
   if v_order.provider_payment_id like 'creating:%' then
-    begin
-      v_started_epoch := pg_catalog.split_part(v_order.provider_payment_id, ':', 2)::bigint;
-    exception when others then
-      v_started_epoch := 0;
-    end;
-    if v_started_epoch > 0
-       and pg_catalog.now() - pg_catalog.to_timestamp(v_started_epoch) < interval '90 seconds' then
-      return pg_catalog.jsonb_build_object('state', 'in_progress', 'order_number', v_order.order_number);
-    end if;
+    return pg_catalog.jsonb_build_object('state', 'in_progress', 'order_number', v_order.order_number);
   end if;
 
   v_claim_ref := 'creating:' || pg_catalog.floor(pg_catalog.date_part('epoch', pg_catalog.clock_timestamp()))::bigint::text || ':' || p_attempt_token;
