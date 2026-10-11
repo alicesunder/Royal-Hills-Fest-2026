@@ -146,7 +146,7 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
             </div>
 
             <div className={`ticket-availability ${isSoldOut ? 'is-sold' : ''}`}>
-              {isSoldOut ? 'SOLD OUT' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : isVip ? `เหลือ ${ticket.remainingQuantity} โต๊ะ` : `เหลือ ${ticket.remainingQuantity} ใบ`}
+              {isSoldOut ? 'SOLD OUT' : isNotOnSale ? 'ยังไม่เปิดลงทะเบียน' : isVip ? `เหลือ ${ticket.remainingQuantity} โต๊ะ` : `เหลือ ${ticket.remainingQuantity} ใบ`}
             </div>
           </div>
 
@@ -167,10 +167,10 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
 
           <div className="ticket-price-panel">
             <div>
-              <span className="ticket-price-label">{isVip ? 'VIP TABLE PRICE' : 'ENTRY PRICE'}</span>
+              <span className="ticket-price-label">{isVip ? 'VIP TABLE REGISTRATION' : 'FREE REGISTRATION'}</span>
               <div className={`ticket-price-value ${isVip ? 'ticket-price-value--gold' : ''}`}>
-                ฿<CountUp to={ticket.price} />
-                <span className="ticket-price-currency">THB</span>
+                ฟรี
+                <span className="ticket-price-currency">ไม่มีค่าใช้จ่าย</span>
               </div>
             </div>
             <div className="ticket-unit-badge">
@@ -199,7 +199,7 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
               onClick={() => onSelectTicketType(ticket.id)}
               className={`ticket-buy-button ${isVip ? 'ticket-buy-button--vip' : ''} ${isUnavailable ? 'is-disabled' : ''}`}
             >
-              {isSoldOut ? 'SOLD OUT' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : isVip ? 'เลือกโต๊ะ VIP' : 'เลือกบัตร'}
+              {isSoldOut ? 'SOLD OUT' : isNotOnSale ? 'ยังไม่เปิดลงทะเบียน' : isVip ? 'ลงทะเบียน VIP' : 'ลงทะเบียนฟรี'}
               {!isUnavailable && <ArrowRight className="h-4 w-4" />}
             </button>
           </div>
@@ -227,14 +227,14 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
             <Sparkles className="h-3.5 w-3.5" />
             OFFICIAL TICKETS · 2026
           </div>
-          <h2 className="ticket-showcase-title">เลือกบัตรเข้าร่วมงาน</h2>
+          <h2 className="ticket-showcase-title">ลงทะเบียนเข้าร่วมงานฟรี</h2>
           <div className="ticket-showcase-divider">
             <span />
             <Gem className="h-4 w-4" />
             <span />
           </div>
           <p className="ticket-showcase-copy">
-            เลือกประสบการณ์ของคุณ — จากบัตรเข้าร่วมงานแบบเต็มวัน ไปจนถึงโต๊ะ VIP ส่วนตัวที่รายล้อมด้วยแสงทองของ Royal Hills Fest
+            ลงทะเบียนเข้าร่วมงานได้ฟรี ทั้งบัตรทั่วไปและสิทธิ์โต๊ะ VIP ตามจำนวนที่ผู้จัดงานเปิดให้ลงทะเบียน
           </p>
         </header>
 
@@ -246,12 +246,12 @@ export const TicketPreviewSection: React.FC<TicketPreviewSectionProps> = ({
         <div className="ticket-selection-rail">
           <div className="ticket-selection-rail-mark"><Sparkles className="h-3.5 w-3.5" /></div>
           <div>
-            <span className="ticket-rail-eyebrow">OFFICIAL BOX OFFICE</span>
+            <span className="ticket-rail-eyebrow">FREE REGISTRATION</span>
             <strong>พร้อมเลือกประสบการณ์ของคุณ?</strong>
-            <small>เปิดหน้าร้านเพื่อระบุจำนวนบัตร กรอกข้อมูลผู้เข้าร่วม และชำระเงินรับ QR Code</small>
+            <small>เปิดหน้าลงทะเบียนเพื่อระบุจำนวน กรอกข้อมูลผู้เข้าร่วม และรับ QR Code โดยไม่เสียค่าใช้จ่าย</small>
           </div>
           <button type="button" onClick={onViewAllTickets} className="ticket-rail-button">
-            เปิดหน้าร้านซื้อบัตร
+            เปิดหน้าลงทะเบียน
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
