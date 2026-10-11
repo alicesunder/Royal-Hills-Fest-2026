@@ -337,47 +337,6 @@ export const ticketingApiService = {
     return (payload.data || {}) as JsonRecord;
   },
 
-  async getPaymentReviewOrders(accessToken: string): Promise<JsonRecord[]> {
-    assertConfigured();
-    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-        Authorization: 'Bearer ' + accessToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ action: 'admin-payment-reviews' }),
-    });
-    const payload = await response.json().catch(() => ({})) as JsonRecord;
-    if (!response.ok) {
-      throw new Error(typeof payload.error === 'string' ? payload.error : 'โหลดรายการชำระเงินที่รอตรวจสอบไม่สำเร็จ');
-    }
-    return Array.isArray(payload.data) ? payload.data as JsonRecord[] : [];
-  },
-
-  async reviewPaymentOrder(
-    accessToken: string,
-    orderId: string,
-    reviewAction: 'approve' | 'reject',
-    note: string,
-  ): Promise<JsonRecord> {
-    assertConfigured();
-    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-        Authorization: 'Bearer ' + accessToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ action: 'review-payment-order', orderId, reviewAction, note }),
-    });
-    const payload = await response.json().catch(() => ({})) as JsonRecord;
-    if (!response.ok) {
-      throw new Error(typeof payload.error === 'string' ? payload.error : 'บันทึกผลตรวจสอบการชำระเงินไม่สำเร็จ');
-    }
-    return (payload.data || {}) as JsonRecord;
-  },
-
   createCredentials(): { idempotencyKey: string; lookupToken: string } {
     const random = new Uint8Array(32);
     crypto.getRandomValues(random);
