@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, Order, AttendeeInfo, TicketRegistrationProfile, VipTableRegistration } from '../types';
+import { ticketingApiService } from '../services/ticketingApiService';
 import {
   X,
   ArrowRight,
