@@ -38,6 +38,8 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   const [selectedTicket, setSelectedTicket] = useState<IssuedTicket | null>(null);
   const [selectedOrderRecord, setSelectedOrderRecord] = useState<Order | null>(null);
   const [selectedTicketQr, setSelectedTicketQr] = useState<string>('');
+  const [selectedParkingQr, setSelectedParkingQr] = useState<string>('');
+  const [printMode, setPrintMode] = useState<'ticket' | 'parking' | null>(null);
   const [lookupQuery, setLookupQuery] = useState('');
   const [lookupTokenInput, setLookupTokenInput] = useState('');
   const [lookupError, setLookupError] = useState('');
@@ -134,6 +136,22 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
     }
   }, [selectedTicket]);
 
+  useEffect(() => {
+    const token = selectedTicket?.parkingPass?.qrToken;
+    if (!token) {
+      setSelectedParkingQr('');
+      return;
+    }
+    QRCode.toDataURL(token, {
+      width: 420,
+      margin: 2,
+      color: { dark: '#111111', light: '#ffffff' },
+      errorCorrectionLevel: 'H',
+    })
+      .then((url) => setSelectedParkingQr(url))
+      .catch((error) => console.error('Failed to generate parking QR', error));
+  }, [selectedTicket]);
+
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLookupError('');
@@ -228,7 +246,30 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   };
 
   const handlePrintTicket = () => {
-    window.print();
+    setPrintMode('ticket');
+    window.setTimeout(() => {
+      window.print();
+      setPrintMode(null);
+    }, 120);
+  };
+
+  const handlePrintParkingPass = () => {
+    if (!selectedTicket?.parkingPass) return;
+    setPrintMode('parking');
+    window.setTimeout(() => {
+      window.print();
+      setPrintMode(null);
+    }, 120);
+  };
+
+  const handleDownloadParkingQr = () => {
+    if (!selectedParkingQr || !selectedTicket?.parkingPass) return;
+    const a = document.createElement('a');
+    a.href = selectedParkingQr;
+    a.download = `RoyalHillsFest2026_${selectedTicket.parkingPass.registrationCode}_VehicleQR.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   // Find parent order of the selected ticket
@@ -239,7 +280,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   const allTicketsList = orders.flatMap((o) => o.tickets);
 
   return (
-    <section id="my-tickets" className="py-20 sm:py-28 bg-[#10140F] relative min-h-screen">
+    <section id="my-tickets" className={`py-20 sm:py-28 bg-[#10140F] relative min-h-screen ${printMode ? 'print-mode-' + printMode : ''}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12 no-print">
@@ -370,6 +411,64 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               </aside>
             </article>
 
+            {selectedTicket.parkingPass && (
+              <article className="printable-parking-pass rounded-2xl border-2 border-[#D8A934] bg-[#FFFDF7] text-[#10140F] p-5 sm:p-7 shadow-xl" aria-label={"ป้ายทะเบียนรถ " + selectedTicket.parkingPass.vehiclePlate}>
+                <div className="flex flex-col sm:flex-row items-stretch gap-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-3 border-b-2 border-[#D8A934] pb-3">
+                      <div>
+                        <p className="text-[10px] sm:text-xs font-black tracking-[0.2em] text-[#6b541a]">ROYAL HILLS FEST 2026</p>
+                        <h2 className="mt-1 text-xl sm:text-3xl font-black">ป้ายอนุญาตรถเข้าพื้นที่งาน</h2>
+                        <p className="text-xs sm:text-sm mt-1">VEHICLE & PARKING PASS</p>
+                      </div>
+                      <span className="shrink-0 rounded-lg border-2 border-[#D8A934] px-3 py-2 text-xs sm:text-sm font-black">
+                        {selectedTicket.ticketKind === 'VIP' ? 'VIP' : 'GENERAL'}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border-2 border-[#10140F] px-4 py-3 text-center">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-[#6b541a]">ทะเบียนรถ / VEHICLE REGISTRATION</p>
+                      <p className="mt-1 text-3xl sm:text-5xl font-black tracking-wide break-words">{selectedTicket.parkingPass.vehiclePlate}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3 mt-4 text-sm">
+                      <div><p className="text-[10px] text-[#6b541a]">ยศ / ตำแหน่ง</p><p className="font-bold">{selectedTicket.parkingPass.ownerRank || '—'}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">ชื่อผู้รับผิดชอบรถ</p><p className="font-bold">{selectedTicket.parkingPass.ownerName}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">หน่วยงาน</p><p className="font-bold">{selectedTicket.parkingPass.organization}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">สังกัด</p><p className="font-bold">{selectedTicket.parkingPass.affiliation}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">เบอร์โทรศัพท์</p><p className="font-bold">{selectedTicket.parkingPass.ownerPhone}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">เลขที่ป้ายรถ</p><p className="font-mono font-black">{selectedTicket.parkingPass.registrationCode}</p></div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-lg bg-[#f4edda] border border-[#D8A934] p-3">
+                        <p className="text-[10px] text-[#6b541a]">โซนจอดรถ / PARKING ZONE</p>
+                        <p className="mt-1 text-lg font-black">{selectedTicket.parkingPass.parkingZone || 'จัดสรรโดยเจ้าหน้าที่'}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#f4edda] border border-[#D8A934] p-3">
+                        <p className="text-[10px] text-[#6b541a]">ช่องจอด / PARKING SLOT</p>
+                        <p className="mt-1 text-lg font-black">{selectedTicket.parkingPass.parkingSlot || 'ตามคำแนะนำหน้างาน'}</p>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-[10px] leading-relaxed text-[#534a32]">
+                      วางป้ายนี้บริเวณกระจกหน้ารถให้เจ้าหน้าที่เห็นชัดเจน เจ้าหน้าที่สามารถสแกน QR เพื่อตรวจทะเบียนรถ เจ้าของรถ หน่วยงาน และสังกัดได้
+                    </p>
+                  </div>
+
+                  <div className="sm:w-52 shrink-0 flex flex-col items-center justify-center rounded-xl border border-[#d8cba6] bg-white p-4">
+                    <p className="text-[10px] font-black tracking-widest text-[#6b541a]">SCAN TO VERIFY VEHICLE</p>
+                    {selectedParkingQr ? (
+                      <img className="parking-qr-image mt-2 w-40 h-40 sm:w-44 sm:h-44 object-contain" src={selectedParkingQr} alt={"QR ป้ายรถ " + selectedTicket.parkingPass.vehiclePlate} />
+                    ) : (
+                      <div className="mt-2 w-40 h-40 flex items-center justify-center text-xs text-gray-500">กำลังสร้าง QR รถ…</div>
+                    )}
+                    <p className="mt-2 text-center text-[10px] font-mono break-all text-black">{selectedTicket.parkingPass.registrationCode}</p>
+                    <p className="mt-2 text-center text-[10px] font-bold text-[#6b541a]">QR รถนี้แยกจาก QR ตั๋วเข้างาน</p>
+                  </div>
+                </div>
+              </article>
+            )}
+
             <div className="flex flex-wrap items-center gap-3 no-print ticket-print-hide">
               <button
                 onClick={handlePrintTicket}
@@ -385,8 +484,28 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                 className="cursor-pointer py-3 px-4 rounded-xl bg-[#182719] hover:bg-[#223624] border border-[#D8A934]/60 text-[#FFF9ED] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow transition-all disabled:opacity-50"
               >
                 <Download className="w-4 h-4 text-[#D8A934]" />
-                บันทึก QR สำหรับเช็กอิน
+                บันทึก QR ตั๋วเข้างาน
               </button>
+              {selectedTicket.parkingPass && (
+                <>
+                  <button
+                    onClick={handlePrintParkingPass}
+                    className="cursor-pointer py-3 px-4 rounded-xl bg-[#FFF9ED] hover:bg-[#f0e5c7] border border-[#D8A934] text-[#10140F] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all"
+                    title="พิมพ์ป้ายติดรถหรือบันทึกเป็น PDF"
+                  >
+                    <Printer className="w-4 h-4" />
+                    พิมพ์ป้ายติดรถ
+                  </button>
+                  <button
+                    onClick={handleDownloadParkingQr}
+                    disabled={!selectedParkingQr}
+                    className="cursor-pointer py-3 px-4 rounded-xl bg-[#182719] hover:bg-[#223624] border border-[#D8A934]/60 text-[#FFF9ED] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all disabled:opacity-50"
+                  >
+                    <Download className="w-4 h-4 text-[#D8A934]" />
+                    บันทึก QR รถ
+                  </button>
+                </>
+              )}
               <button
                 onClick={handleCopyTicketCode}
                 className="cursor-pointer py-3 px-4 rounded-xl bg-[#10140F] hover:bg-[#182719] border border-[#30391E] text-[#FFF9ED] text-xs font-semibold flex items-center gap-2 transition-all"
