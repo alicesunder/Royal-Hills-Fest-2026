@@ -135,11 +135,11 @@ function normalizeRegistrationProfile(value: unknown, label: string) {
     attendeeEmail: text(data.attendeeEmail, 254).toLowerCase(),
     organization: text(data.organization, 200),
     affiliation: text(data.affiliation, 200),
-    vehiclePlate: text(data.vehiclePlate, 40).replace(/\\s+/g, " ").toUpperCase(),
+    vehiclePlate: text(data.vehiclePlate, 40).replace(/\s+/g, " ").toUpperCase(),
   };
   if (profile.attendeeName.length < 2) throw new ApiError(400, "กรุณากรอกชื่อผู้ลงทะเบียนของ" + label);
   if (profile.attendeePhone.length < 6) throw new ApiError(400, "กรุณากรอกเบอร์โทรศัพท์ของ" + label);
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(profile.attendeeEmail)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.attendeeEmail)) {
     throw new ApiError(400, "กรุณากรอกอีเมลของ" + label + "ให้ถูกต้อง");
   }
   if (!profile.organization) throw new ApiError(400, "กรุณาระบุหน่วยงานของ" + label);
@@ -276,6 +276,30 @@ async function checkInTicket(request: Request, body: JsonObject) {
   });
 }
 
+async function checkVehiclePass(request: Request, body: JsonObject) {
+  const admin = await requireAdmin(request);
+  const qrToken = text(body.qrToken, 256);
+  const requestId = text(body.requestId, 64);
+  const scannerDeviceId = text(body.scannerDeviceId, 100);
+  const scanLocation = text(body.scanLocation, 150);
+
+  if (qrToken.length < 24 || qrToken.length > 256) {
+    throw new ApiError(400, "QR ป้ายรถไม่ถูกต้อง");
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(requestId)) {
+    throw new ApiError(400, "รหัสคำขอสแกนไม่ถูกต้อง");
+  }
+
+  return await rpc("ticketing_check_vehicle_pass", {
+    p_token_hash: await hashHex(qrToken),
+    p_staff_id: admin.id,
+    p_scanner_device_id: scannerDeviceId || null,
+    p_scan_location: scanLocation || null,
+    p_request_id: requestId,
+  });
+}
+
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (request.method !== "POST") {
@@ -307,6 +331,9 @@ Deno.serve(async (request: Request) => {
         break;
       case "check-in":
         result = await checkInTicket(request, body);
+        break;
+      case "check-vehicle":
+        result = await checkVehiclePass(request, body);
         break;
       default:
         throw new ApiError(400, "ไม่รู้จักคำสั่งที่ร้องขอ");
