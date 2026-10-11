@@ -201,6 +201,30 @@ export const ticketingApiService = {
     return (payload.data || {}) as JsonRecord;
   },
 
+  async checkVehiclePass(accessToken: string, qrToken: string, scannerDeviceId = 'parking-gate-1'): Promise<JsonRecord> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'check-vehicle',
+        qrToken,
+        requestId: crypto.randomUUID(),
+        scannerDeviceId,
+        scanLocation: 'ROYAL HILLS VEHICLE GATE',
+      }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'ตรวจสอบ QR ป้ายรถไม่สำเร็จ');
+    }
+    return (payload.data || {}) as JsonRecord;
+  },
+
   createCredentials(): { idempotencyKey: string; lookupToken: string } {
     const random = new Uint8Array(32);
     crypto.getRandomValues(random);
