@@ -1952,6 +1952,21 @@ html{scroll-behavior:smooth}
   .rhf-e-ticket .rhf-e-ticket-venue,
   .rhf-e-ticket .rhf-e-ticket-type-panel strong,
   .rhf-e-ticket .rhf-e-ticket-banner { color:#fffdf7 !important; }
+  /* The legacy print reset colors every descendant dark; explicitly restore
+     the colored child spans in the ticket's event title and eyebrow labels. */
+  .rhf-e-ticket .rhf-e-ticket-title > span:not(.rhf-gold-word),
+  .rhf-e-ticket .rhf-e-ticket-person-heading > span {
+    color: #fffdf7 !important;
+    -webkit-text-fill-color: #fffdf7 !important;
+  }
+  .rhf-e-ticket .rhf-e-ticket-title > .rhf-gold-word {
+    color: #e2b93e !important;
+    -webkit-text-fill-color: #e2b93e !important;
+  }
+  .rhf-e-ticket .rhf-e-ticket-eyebrows > span:first-child {
+    color: #efd27c !important;
+    -webkit-text-fill-color: #efd27c !important;
+  }
   .rhf-e-ticket .rhf-gold-word,
   .rhf-e-ticket .rhf-e-ticket-paid-label,
   .rhf-e-ticket .rhf-e-ticket-eyebrows,
