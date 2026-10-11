@@ -65,7 +65,7 @@ begin
 
   v_vip_people := v_vip_tables * 6;
 
-  with rows as (
+  with vehicle_rows as (
     select
       v.registration_code,
       t.ticket_code,
@@ -169,7 +169,7 @@ begin
   into v_vehicles
   from (
     select *
-    from rows
+    from vehicle_rows
     order by created_at desc
     limit v_limit
   ) r;
@@ -245,7 +245,7 @@ begin
     raise exception 'กรุณากรอกทะเบียนรถให้ถูกต้อง' using errcode = '22023';
   end if;
 
-  select t.*, o.*
+  select t, o
     into v_ticket, v_order
   from public.tickets t
   join public.orders o on o.id = t.order_id
