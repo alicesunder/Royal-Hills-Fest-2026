@@ -26,8 +26,6 @@ export default function App() {
   const [checkInTargetCode, setCheckInTargetCode] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string | null>(null);
 
-  const showNotification  }, []);
-
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 5000);
