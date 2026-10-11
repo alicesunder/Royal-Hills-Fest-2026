@@ -210,6 +210,8 @@ declare
   v_ticket public.tickets%rowtype;
   v_order public.orders%rowtype;
   v_existing ticketing_private.vehicle_passes%rowtype;
+  v_ticket_id uuid;
+  v_order_id uuid;
   v_registration_code text;
   v_vehicle_token text;
   v_vehicle_token_hash text;
@@ -245,16 +247,19 @@ begin
     raise exception 'กรุณากรอกทะเบียนรถให้ถูกต้อง' using errcode = '22023';
   end if;
 
-  select t, o
-    into v_ticket, v_order
+  select t.id, o.id
+    into v_ticket_id, v_order_id
   from public.tickets t
   join public.orders o on o.id = t.order_id
   where t.ticket_code = p_ticket_code
   for update of t, o;
 
-  if v_ticket.id is null then
+  if v_ticket_id is null or v_order_id is null then
     raise exception 'ไม่พบบัตรเก่าในระบบ' using errcode = 'P0002';
   end if;
+
+  select * into v_ticket from public.tickets where id = v_ticket_id;
+  select * into v_order from public.orders where id = v_order_id;
   if v_order.status <> 'paid' or v_ticket.status not in ('issued', 'checked_in', 'wristband_issued') then
     raise exception 'บัตรนี้ไม่มีสถานะที่อนุญาตให้เติมข้อมูลรถ' using errcode = '22023';
   end if;
