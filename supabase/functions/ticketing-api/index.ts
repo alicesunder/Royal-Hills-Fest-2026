@@ -228,60 +228,6 @@ async function createOrder(body: JsonObject) {
 }
 
 
-async function adminQueue(request: Request) {
-  const admin = await requireAdmin(request);
-  const query = new URLSearchParams();
-  query.set("select", "id,order_number,status,customer_name,customer_email,customer_phone,amount_total_thb,payment_reference,payment_proof_path,payment_submitted_at,created_at,order_items(quantity,unit_price_thb,line_total_thb,attendee_data,ticket_types(code,name))");
-  query.set("status", "eq.awaiting_review");
-  query.set("order", "payment_submitted_at.desc");
-  query.set("limit", "100");
-  const rows = await rest("orders?" + query.toString()) as Array<JsonObject>;
-  const root = config().url;
-
-  const orders = await Promise.all(rows.map(async (row) => {
-    let proofUrl: string | null = null;
-    const path = typeof row.payment_proof_path === "string" ? row.payment_proof_path : "";
-    if (path) {
-      const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-      const signed = await fetch(root + "/storage/v1/object/sign/payment-proofs/" + encodedPath, {
-        method: "POST",
-        headers: serverHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ expiresIn: 300 }),
-      });
-      const signedData = await responseJson(signed) as { signedURL?: string; signedUrl?: string } | null;
-      const rawSignedPath = signedData?.signedURL || signedData?.signedUrl || "";
-      if (signed.ok && rawSignedPath) {
-        // Supabase Storage returns paths such as /object/sign/<bucket>/<path>?token=...
-        // The SDK's storage base normally adds /storage/v1; when constructing a URL
-        // manually, add that prefix or Storage responds with "requested path is invalid".
-        if (/^https?:\/\//i.test(rawSignedPath)) {
-          const absolute = new URL(rawSignedPath);
-          const expectedOrigin = new URL(root).origin;
-          if (absolute.origin === expectedOrigin && absolute.pathname.startsWith("/storage/v1/object/sign/")) {
-            proofUrl = absolute.toString();
-          }
-        } else {
-          const normalizedPath = rawSignedPath.startsWith("/storage/v1/")
-            ? rawSignedPath
-            : rawSignedPath.startsWith("/object/")
-              ? "/storage/v1" + rawSignedPath
-              : rawSignedPath.startsWith("object/")
-                ? "/storage/v1/" + rawSignedPath
-                : "";
-          if (normalizedPath.startsWith("/storage/v1/object/sign/")) {
-            proofUrl = new URL(normalizedPath, root).toString();
-          }
-        }
-      }
-    }
-    const sanitized = { ...row };
-    delete sanitized.payment_proof_path;
-    return { ...sanitized, payment_proof_url: proofUrl };
-  }));
-
-  return { orders, adminEmail: admin.email };
-}
-
 async function checkInTicket(request: Request, body: JsonObject) {
   const admin = await requireAdmin(request);
   const qrToken = text(body.qrToken, 256);
@@ -302,31 +248,6 @@ async function checkInTicket(request: Request, body: JsonObject) {
     p_scanner_device_id: scannerDeviceId || null,
     p_scan_location: scanLocation || null,
     p_request_id: requestId || crypto.randomUUID(),
-  });
-}
-
-async function adminHistory(request: Request, body: JsonObject) {
-  const admin = await requireAdmin(request);
-  const requestedLimit = integer(body.limit, 1, 500) ?? 100;
-  return await rpc("ticketing_admin_review_history", {
-    p_admin_user_id: admin.id,
-    p_limit: requestedLimit,
-  });
-}
-
-async function reviewOrder(request: Request, body: JsonObject) {
-  const admin = await requireAdmin(request);
-  const orderId = text(body.orderId, 64);
-  const reviewAction = text(body.reviewAction, 16);
-  const note = text(body.note, 500);
-  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !["approve", "reject"].includes(reviewAction)) {
-    throw new ApiError(400, "คำขอตรวจสอบรายการไม่ถูกต้อง");
-  }
-  return await rpc("ticketing_review_order", {
-    p_order_id: orderId,
-    p_action: reviewAction,
-    p_reviewer_id: admin.id,
-    p_note: note || null,
   });
 }
 
@@ -358,15 +279,6 @@ Deno.serve(async (request: Request) => {
         break;
       case "get-order":
         result = await getCustomerOrder(text(body.orderNumber, 40), text(body.lookupToken, 128));
-        break;
-      case "admin-list":
-        result = await adminQueue(request);
-        break;
-      case "admin-review":
-        result = await reviewOrder(request, body);
-        break;
-      case "admin-history":
-        result = await adminHistory(request, body);
         break;
       case "check-in":
         result = await checkInTicket(request, body);
