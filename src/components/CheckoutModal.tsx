@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, Order, AttendeeInfo } from '../types';
-import { ticketingApiService } from '../services/ticketingApiService';
 import {
   X,
   ArrowRight,
@@ -8,13 +7,6 @@ import {
   User,
   Phone,
   Mail,
-  ShieldCheck,
-  CreditCard,
-  QrCode,
-  Building,
-  CheckCircle2,
-  Clock,
-  Sparkles,
   Ticket,
   Copy,
   Check,
@@ -33,7 +25,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   onOrderCompleted,
 }) => {
-  // Step 1: Customer & Attendees, Step 2: Summary, Step 3: Payment, Step 4: Success
+  // Step 1: attendee details, Step 2: review and register, Step 3: QR tickets
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Buyer Info
@@ -49,9 +41,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const normalQty = normalItem?.quantity || 0;
   const vipTableQty = vipItem?.quantity || 0;
 
-  // Preview the total from the selected cart; the server recalculates it from trusted database prices.
-  const totalAmount = 0;
-
   // Normal Ticket Attendees
   const [normalAttendees, setNormalAttendees] = useState<AttendeeInfo[]>([]);
 
@@ -60,18 +49,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Server-created order and manual PromptPay proof workflow.
+  // Server-created free registration and secure ticket lookup.
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [checkoutCredentials, setCheckoutCredentials] = useState<{ idempotencyKey: string; lookupToken: string } | null>(null);
   const [lookupToken, setLookupToken] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
-  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(30 * 60);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [isSubmittingProof, setIsSubmittingProof] = useState(false);
-  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
-  const [paymentNotice, setPaymentNotice] = useState('');
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [copiedLookupDetails, setCopiedLookupDetails] = useState(false);
 
@@ -209,9 +192,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleCopyLookupDetails = async () => {
     if (!createdOrder || !lookupToken) return;
-    const details = 'ROYAL HILLS FEST 2026\nเลขเลขลงทะเบียน: ' + createdOrder.id +
+    const details = 'ROYAL HILLS FEST 2026\nเลขลงทะเบียน: ' + createdOrder.id +
       '\nรหัสติดตามส่วนตัว: ' + lookupToken +
-      '\nเก็บรหัสนี้เป็นส่วนตัว ใช้ตรวจสอบสถานะคำสั่งซื้อของคุณ';
+      '\nเก็บรหัสนี้เป็นส่วนตัว ใช้ตรวจสอบสถานะการลงทะเบียนของคุณ';
     try {
       await navigator.clipboard.writeText(details);
       setCopiedLookupDetails(true);
@@ -318,7 +301,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         placeholder="เช่น nakanosachiko1@gmail.com"
                         className="w-full bg-[#182719] border border-[#30391E] rounded-lg px-3 py-2 text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
                       />
-                      <p className="text-[10px] text-[#65705A] mt-1">ใช้ค้นหาและอ้างอิงคำสั่งซื้อ · ขณะนี้ยังไม่มีการส่งบัตรทางอีเมลอัตโนมัติ</p>
+                      <p className="text-[10px] text-[#65705A] mt-1">ใช้อ้างอิงข้อมูลลงทะเบียน · กรุณาเก็บเลขลงทะเบียนและรหัสติดตามไว้</p>
                       {errors.buyerEmail && <p className="text-red-400 mt-1">{errors.buyerEmail}</p>}
                     </div>
                   </div>
@@ -470,14 +453,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="submit"
                   className="cursor-pointer flex items-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-6 py-3.5 rounded-xl shadow-lg shadow-[#D8A934]/25 transition-all duration-200"
                 >
-                  ถัดไป (ตรวจสอบคำสั่งซื้อ)
+                  ถัดไป (ตรวจสอบข้อมูล)
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </form>
           )}
 
-          {/* STEP 2: สรุปรายการสั่งซื้อ & เลือกวิธีชำระเงิน */}
+          {/* STEP 2: ตรวจสอบข้อมูลการลงทะเบียน */}
           {step === 2 && (
             <div className="space-y-6">
               <div className="bg-[#10140F] p-5 rounded-xl border border-[#30391E] space-y-4">
@@ -567,7 +550,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   disabled={isCreatingOrder}
                   className="cursor-pointer flex items-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-6 py-3.5 rounded-xl shadow-lg shadow-[#D8A934]/25 transition-all disabled:opacity-50"
                 >
-                  {isCreatingOrder ? 'กำลังลงทะเบียน...' : 'ยืนยันการใช้ฟรีเรจิสเตอร์'}
+                  {isCreatingOrder ? 'กำลังลงทะเบียน...' : 'ยืนยันการลงทะเบียนฟรี'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -595,7 +578,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Order ID Pill */}
               <div className="inline-flex items-center gap-2 bg-[#10140F] px-4 py-2 rounded-xl border border-[#30391E] text-xs font-mono text-[#D8A934]">
-                <span>เลขที่คำสั่งซื้อ: {createdOrder.id}</span>
+                <span>เลขลงทะเบียน: {createdOrder.id}</span>
                 <button
                   onClick={handleCopyOrderId}
                   className="cursor-pointer text-[#65705A] hover:text-[#FFF9ED] ml-2"
