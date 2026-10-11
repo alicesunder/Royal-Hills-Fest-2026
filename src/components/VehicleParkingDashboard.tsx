@@ -602,7 +602,7 @@ export const VehicleParkingDashboard: React.FC = () => {
                           </button>
                           <p className="text-[10px] text-[#65705A]">ช่องจอดหนึ่งช่องถูกจัดสรรให้รถที่ลงทะเบียนได้เพียงคันเดียว</p>
                         </div>
-                      )}                      </div>
+                      )}
                     </div>
                   </article>
                 );
