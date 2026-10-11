@@ -281,8 +281,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
             {/* Shimmer sweep */}
             <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ease-out" />
             <Sparkles className="w-4 h-4 text-[#10140F]" />
-            <span>ซื้อบัตรเข้าร่วมงาน</span>
-            <span className="text-[11px] font-normal opacity-75 hidden sm:inline">(เริ่มต้น 555.-)</span>
+            <span>ลงทะเบียนเข้าร่วมงานฟรี</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
 
@@ -299,7 +298,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
         {/* Trust Badges */}
         <div className="hero-trust-badges mt-6 flex flex-wrap items-center justify-center gap-4 text-[11px] text-[#F3E7C8]/75 font-mono">
           <span className="flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5 text-[#D8A934]" /> รับบัตรดิจิทัลพร้อม QR หลังอนุมัติ
+            <Check className="w-3.5 h-3.5 text-[#D8A934]" /> รับบัตรดิจิทัลพร้อม QR หลังลงทะเบียน
           </span>
           <span className="text-[#30391E]">•</span>
           <span className="flex items-center gap-1.5">
@@ -307,7 +306,7 @@ export const Hero: React.FC<HeroProps> = ({ onRegisterClick, onExploreClick }) =
           </span>
           <span className="text-[#30391E]">•</span>
           <span className="flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5 text-[#D8A934]" /> รองรับชำระผ่าน PromptPay QR
+            <Check className="w-3.5 h-3.5 text-[#D8A934]" /> ไม่มีค่าใช้จ่ายในการลงทะเบียน
           </span>
         </div>
       </div>
