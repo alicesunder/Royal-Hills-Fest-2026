@@ -4,6 +4,8 @@ import {
   CarFront,
   CheckCircle2,
   Crown,
+  ExternalLink,
+  FileCheck2,
   LogIn,
   LogOut,
   MapPin,
@@ -36,6 +38,7 @@ type VehiclePassRow = {
   scan_count: number;
   created_at: string;
   attendee_names: string[];
+  has_vehicle_pass: boolean;
 };
 
 type DashboardStats = {
@@ -46,14 +49,55 @@ type DashboardStats = {
   vip_people: number;
   vip_tables: number;
   total_people: number;
+  legacy_missing_vehicle: number;
 };
 
 const EMPTY_STATS: DashboardStats = {
   total: 0, assigned: 0, arrived: 0,
   normal_people: 0, vip_people: 0, vip_tables: 0, total_people: 0,
+  legacy_missing_vehicle: 0,
 };
 
 type DraftAssignment = { zone: string; slot: string };
+type LegacyVehicleDraft = {
+  rank: string;
+  name: string;
+  phone: string;
+  email: string;
+  organization: string;
+  affiliation: string;
+  vehiclePlate: string;
+};
+type PaymentReviewOrder = {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_email: string;
+  amount_total_thb: number;
+  expires_at: string;
+  payment_submitted_at: string;
+  created_at: string;
+  has_proof: boolean;
+  proof_url: string | null;
+  items: Array<{ ticket_type: string; quantity: number; unit_price_thb: number }>;
+};
+const reviewOrderFromJson = (raw: Record<string, unknown>): PaymentReviewOrder => ({
+  id: stringValue(raw.id),
+  order_number: stringValue(raw.order_number),
+  customer_name: stringValue(raw.customer_name),
+  customer_email: stringValue(raw.customer_email),
+  amount_total_thb: Number(raw.amount_total_thb || 0),
+  expires_at: stringValue(raw.expires_at),
+  payment_submitted_at: stringValue(raw.payment_submitted_at),
+  created_at: stringValue(raw.created_at),
+  has_proof: raw.has_proof === true,
+  proof_url: typeof raw.proof_url === 'string' ? raw.proof_url : null,
+  items: Array.isArray(raw.items) ? raw.items.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object')).map((item) => ({
+    ticket_type: stringValue(item.ticket_type),
+    quantity: Number(item.quantity || 0),
+    unit_price_thb: Number(item.unit_price_thb || 0),
+  })) : [],
+});
 
 const stringValue = (value: unknown) => typeof value === 'string' ? value : '';
 const rowFromJson = (raw: Record<string, unknown>): VehiclePassRow => ({
@@ -77,6 +121,7 @@ const rowFromJson = (raw: Record<string, unknown>): VehiclePassRow => ({
   attendee_names: Array.isArray(raw.attendee_names)
     ? raw.attendee_names.filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
     : [],
+  has_vehicle_pass: raw.has_vehicle_pass !== false,
 });
 
 export const VehicleParkingDashboard: React.FC = () => {
@@ -92,6 +137,11 @@ export const VehicleParkingDashboard: React.FC = () => {
   const [vehicles, setVehicles] = useState<VehiclePassRow[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ ...EMPTY_STATS });
   const [drafts, setDrafts] = useState<Record<string, DraftAssignment>>({});
+  const [legacyDrafts, setLegacyDrafts] = useState<Record<string, LegacyVehicleDraft>>({});
+  const [reviewOrders, setReviewOrders] = useState<PaymentReviewOrder[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewingOrderId, setReviewingOrderId] = useState('');
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
   const loadVehicles = useCallback(async (token: string) => {
     setLoading(true);
@@ -111,10 +161,37 @@ export const VehicleParkingDashboard: React.FC = () => {
         });
         return merged;
       });
+      setLegacyDrafts((previous) => {
+        const merged = { ...previous };
+        next.filter((row) => !row.has_vehicle_pass).forEach((row) => {
+          merged[row.registration_code] = merged[row.registration_code] || {
+            rank: row.owner_rank,
+            name: row.owner_name,
+            phone: row.owner_phone,
+            email: row.owner_email,
+            organization: row.organization,
+            affiliation: row.affiliation,
+            vehiclePlate: row.vehicle_plate,
+          };
+        });
+        return merged;
+      });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'โหลดทะเบียนรถไม่สำเร็จ');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadPaymentReviewOrders = useCallback(async (token: string) => {
+    setReviewLoading(true);
+    try {
+      const records = await ticketingApiService.getPaymentReviewOrders(token);
+      setReviewOrders(records.map((row) => reviewOrderFromJson(row)));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'โหลดรายการรอตรวจสอบไม่สำเร็จ');
+    } finally {
+      setReviewLoading(false);
     }
   }, []);
 
@@ -125,9 +202,10 @@ export const VehicleParkingDashboard: React.FC = () => {
       setAccessToken(token);
       setEmail(getCachedAdminEmail());
       void loadVehicles(token);
+      void loadPaymentReviewOrders(token);
     }).catch(() => undefined);
     return () => { active = false; };
-  }, [loadVehicles]);
+  }, [loadVehicles, loadPaymentReviewOrders]);
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -139,7 +217,7 @@ export const VehicleParkingDashboard: React.FC = () => {
       setEmail(session.user.email || email);
       setPassword('');
       setNotice('เข้าสู่ระบบจัดสรรที่จอดรถแล้ว');
-      await loadVehicles(session.access_token);
+      await Promise.all([loadVehicles(session.access_token), loadPaymentReviewOrders(session.access_token)]);
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'เข้าสู่ระบบไม่สำเร็จ');
     } finally {
@@ -153,6 +231,9 @@ export const VehicleParkingDashboard: React.FC = () => {
     setPassword('');
     setVehicles([]);
     setStats({ ...EMPTY_STATS });
+    setLegacyDrafts({});
+    setReviewOrders([]);
+    setReviewNotes({});
     setNotice('');
   };
 
@@ -196,6 +277,70 @@ export const VehicleParkingDashboard: React.FC = () => {
   const dateText = (value: string | null) => value
     ? new Date(value).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
     : 'ยังไม่บันทึก';
+
+  const handleRegisterLegacyVehicle = async (row: VehiclePassRow) => {
+    if (!accessToken) return;
+    const draft = legacyDrafts[row.registration_code];
+    if (!draft || !draft.name.trim() || !draft.phone.trim() || !draft.email.trim() ||
+        !draft.organization.trim() || !draft.affiliation.trim() || !draft.vehiclePlate.trim()) {
+      setError('กรุณากรอกชื่อ เบอร์โทร อีเมล หน่วยงาน สังกัด และทะเบียนรถให้ครบถ้วน');
+      return;
+    }
+    setSavingCode(row.registration_code);
+    setError('');
+    setNotice('');
+    try {
+      await ticketingApiService.registerLegacyVehiclePass(accessToken, row.ticket_code, {
+        rank: draft.rank,
+        name: draft.name,
+        phone: draft.phone,
+        email: draft.email,
+        organization: draft.organization,
+        affiliation: draft.affiliation,
+        vehiclePlate: draft.vehiclePlate,
+      });
+      setNotice('เพิ่มข้อมูลรถให้บัตรเก่า ' + row.ticket_code + ' แล้ว');
+      await loadVehicles(accessToken);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'เพิ่มข้อมูลรถให้บัตรเก่าไม่สำเร็จ');
+    } finally {
+      setSavingCode('');
+    }
+  };
+
+  const handleReviewPayment = async (row: PaymentReviewOrder, action: 'approve' | 'reject') => {
+    if (!accessToken) return;
+    const note = (reviewNotes[row.id] || '').trim();
+    if (action === 'reject' && note.length < 5) {
+      setError('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษรก่อนคืนโควตา');
+      return;
+    }
+    if (row.has_proof && !row.proof_url) {
+      setError('ยังเปิดหลักฐานการชำระเงินไม่ได้ จึงไม่สามารถตัดสินรายการนี้ได้ กรุณาตรวจสอบการเชื่อมต่อพื้นที่เก็บไฟล์');
+      return;
+    }
+    const confirmMessage = action === 'approve'
+      ? 'ยืนยันว่าตรวจสอบหลักฐานแล้วและยอดชำระถูกต้อง เพื่อออกบัตรให้คำสั่งซื้อ ' + row.order_number + ' ?'
+      : 'ยืนยันว่าตรวจสอบหลักฐานแล้วและไม่รับการชำระเงิน รายการนี้จะหมดอายุและคืนโควตาบัตรให้ระบบใช่หรือไม่?';
+    if (!window.confirm(confirmMessage)) return;
+    setReviewingOrderId(row.id);
+    setError('');
+    setNotice('');
+    try {
+      const result = await ticketingApiService.reviewPaymentOrder(accessToken, row.id, action, note);
+      setReviewOrders((previous) => previous.filter((item) => item.id !== row.id));
+      setReviewNotes((previous) => ({ ...previous, [row.id]: '' }));
+      setNotice(action === 'approve'
+        ? 'อนุมัติคำสั่งซื้อ ' + row.order_number + ' แล้ว ระบบออกบัตรแล้ว กรุณาเติมข้อมูลรถเก่าต่อในรายการด้านล่าง'
+        : 'ปฏิเสธหลักฐานและคืนโควตาให้คำสั่งซื้อ ' + row.order_number + ' แล้ว');
+      await Promise.all([loadVehicles(accessToken), loadPaymentReviewOrders(accessToken)]);
+      void result;
+    } catch (reviewError) {
+      setError(reviewError instanceof Error ? reviewError.message : 'บันทึกผลตรวจสอบการชำระเงินไม่สำเร็จ');
+    } finally {
+      setReviewingOrderId('');
+    }
+  };
 
   return (
     <section className="min-h-screen bg-[#10140F] text-[#FFF9ED]">
