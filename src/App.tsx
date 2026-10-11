@@ -242,7 +242,7 @@ export default function App() {
                   className="cursor-pointer inline-flex items-center gap-3 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-8 py-4 rounded shadow-xl shadow-[#D8A934]/30 transition-all duration-200"
                 >
                   <Ticket className="w-4 h-4" />
-                  ซื้อบัตรเข้าร่วมงาน วันที่ 14 พฤศจิกายน 2569
+                  ลงทะเบียนเข้าร่วมงานฟรี วันที่ 14 พฤศจิกายน 2569
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
