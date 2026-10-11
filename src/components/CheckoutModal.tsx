@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CartItem, Order, AttendeeInfo } from '../types';
+import { CartItem, Order, AttendeeInfo, TicketRegistrationProfile, VipTableRegistration } from '../types';
 import {
   X,
   ArrowRight,
@@ -19,6 +19,56 @@ interface CheckoutModalProps {
   onClose: () => void;
   onOrderCompleted: (order: Order) => void;
 }
+
+type RegistrationFieldKey = keyof TicketRegistrationProfile;
+
+const REGISTRATION_FIELDS: Array<{
+  key: RegistrationFieldKey;
+  label: string;
+  placeholder: string;
+  type?: string;
+  optional?: boolean;
+}> = [
+  { key: 'rank', label: 'ยศ / ตำแหน่ง (หากมี)', placeholder: 'เช่น พ.ต.ท. / ผอ.', optional: true },
+  { key: 'attendeeName', label: 'ชื่อ-นามสกุล', placeholder: 'ชื่อและนามสกุล' },
+  { key: 'attendeePhone', label: 'เบอร์โทรศัพท์', placeholder: 'หมายเลขโทรศัพท์', type: 'tel' },
+  { key: 'attendeeEmail', label: 'อีเมล', placeholder: 'name@example.com', type: 'email' },
+  { key: 'organization', label: 'หน่วยงาน', placeholder: 'ชื่อหน่วยงาน' },
+  { key: 'affiliation', label: 'สังกัด', placeholder: 'กอง / สำนัก / ฝ่าย / หน่วย' },
+  { key: 'vehiclePlate', label: 'ทะเบียนรถ', placeholder: 'เช่น กข 1234 กรุงเทพมหานคร' },
+];
+
+const RegistrationProfileFields: React.FC<{
+  value: TicketRegistrationProfile;
+  onChange: (key: RegistrationFieldKey, nextValue: string) => void;
+  errors: Record<string, string>;
+  errorPrefix: string;
+}> = ({ value, onChange, errors, errorPrefix }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    {REGISTRATION_FIELDS.map((field) => {
+      const errorKey = errorPrefix + '_' + field.key;
+      const isPlate = field.key === 'vehiclePlate';
+      return (
+        <div key={field.key} className={isPlate ? 'sm:col-span-2' : ''}>
+          <label htmlFor={errorPrefix + '-' + field.key} className="block text-[#F3E7C8] font-semibold mb-1">
+            {field.label}{!field.optional && <span className="text-[#C96F3D]"> *</span>}
+          </label>
+          <input
+            id={errorPrefix + '-' + field.key}
+            type={field.type || 'text'}
+            required={!field.optional}
+            autoComplete="off"
+            value={String(value[field.key] || '')}
+            onChange={(event) => onChange(field.key, event.target.value)}
+            placeholder={field.placeholder}
+            className="w-full bg-[#182719] border border-[#30391E] rounded-lg px-3 py-2 text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
+          />
+          {errors[errorKey] && <p className="text-red-400 mt-1">{errors[errorKey]}</p>}
+        </div>
+      );
+    })}
+  </div>
+);
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   cart,
@@ -44,8 +94,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Normal Ticket Attendees
   const [normalAttendees, setNormalAttendees] = useState<AttendeeInfo[]>([]);
 
-  // VIP Tables Attendee Rosters: 1 entry per VIP table, each has 6 attendee names
-  const [vipTablesRoster, setVipTablesRoster] = useState<{ tableIndex: number; attendeeNames: string[] }[]>([]);
+  // Each VIP table has one registration/vehicle owner plus an optional six-person guest list.
+  const [vipTablesRoster, setVipTablesRoster] = useState<VipTableRegistration[]>([]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -64,9 +114,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     for (let i = 0; i < normalQty; i++) {
       list.push({
         ticketNumber: i + 1,
+        rank: '',
         attendeeName: i === 0 && useBuyerAsFirstAttendee && vipTableQty === 0 ? buyerName : '',
         attendeePhone: i === 0 && useBuyerAsFirstAttendee && vipTableQty === 0 ? buyerPhone : '',
         attendeeEmail: i === 0 && useBuyerAsFirstAttendee && vipTableQty === 0 ? buyerEmail : '',
+        organization: '',
+        affiliation: '',
+        vehiclePlate: '',
       });
     }
     setNormalAttendees(list);
@@ -74,13 +128,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Initialize VIP tables rosters (each table has 6 seats)
   useEffect(() => {
-    const rosters: { tableIndex: number; attendeeNames: string[] }[] = [];
+    const rosters: VipTableRegistration[] = [];
     for (let t = 0; t < vipTableQty; t++) {
-      const names: string[] = [];
-      for (let s = 0; s < 6; s++) {
-        names.push(t === 0 && s === 0 && useBuyerAsFirstAttendee ? buyerName : '');
-      }
-      rosters.push({ tableIndex: t + 1, attendeeNames: names });
+      const names = Array.from({ length: 6 }, (_, index) =>
+        t === 0 && index === 0 && useBuyerAsFirstAttendee ? buyerName : ''
+      );
+      rosters.push({
+        tableIndex: t + 1,
+        attendeeNames: names,
+        rank: '',
+        attendeeName: t === 0 && useBuyerAsFirstAttendee ? buyerName : '',
+        attendeePhone: t === 0 && useBuyerAsFirstAttendee ? buyerPhone : '',
+        attendeeEmail: t === 0 && useBuyerAsFirstAttendee ? buyerEmail : '',
+        organization: '',
+        affiliation: '',
+        vehiclePlate: '',
+      });
     }
     setVipTablesRoster(rosters);
   }, [vipTableQty]);
@@ -94,6 +157,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           const next = [...prev];
           next[0] = {
             ...next[0],
+            attendeeName: buyerName,
+            attendeePhone: buyerPhone,
+            attendeeEmail: buyerEmail,
             attendeeNames: [buyerName, ...next[0].attendeeNames.slice(1)],
           };
           return next;
@@ -115,23 +181,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const validateStep1 = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!buyerName.trim()) errs.buyerName = 'กรุณากรอกชื่อ-นามสกุลผู้ซื้อ';
+    if (!buyerName.trim()) errs.buyerName = 'กรุณากรอกชื่อ-นามสกุลผู้ประสานงาน';
     if (!buyerPhone.trim()) errs.buyerPhone = 'กรุณากรอกหมายเลขโทรศัพท์';
     if (!buyerEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail.trim())) {
       errs.buyerEmail = 'กรุณากรอกอีเมลให้ถูกต้อง';
     }
 
-    // Normal tickets validation: each normal ticket must have attendee name
+    const validateRegistrationProfile = (
+      profile: TicketRegistrationProfile,
+      prefix: string,
+      label: string,
+    ) => {
+      if (!profile.attendeeName.trim()) errs[`${prefix}_attendeeName`] = `กรุณากรอกชื่อ-นามสกุลของ${label}`;
+      if (profile.attendeePhone.trim().length < 6) errs[`${prefix}_attendeePhone`] = `กรุณากรอกเบอร์โทรศัพท์ของ${label}ให้ถูกต้อง`;
+      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(profile.attendeeEmail.trim())) errs[`${prefix}_attendeeEmail`] = `กรุณากรอกอีเมลของ${label}ให้ถูกต้อง`;
+      if (!profile.organization.trim()) errs[`${prefix}_organization`] = `กรุณาระบุหน่วยงานของ${label}`;
+      if (!profile.affiliation.trim()) errs[`${prefix}_affiliation`] = `กรุณาระบุสังกัดของ${label}`;
+      if (!profile.vehiclePlate.trim()) errs[`${prefix}_vehiclePlate`] = `กรุณากรอกทะเบียนรถของ${label}`;
+    };
+
     normalAttendees.forEach((att, idx) => {
-      if (!att.attendeeName.trim()) {
-        errs[`norm_name_${idx}`] = `กรุณากรอกชื่อผู้เข้าร่วมสำหรับบัตรใบที่ ${idx + 1}`;
-      }
+      validateRegistrationProfile(att, `norm_${idx}`, `บัตรปกติใบที่ ${idx + 1}`);
     });
 
-    // VIP tables: only attendee 1 (or buyer) is required per table, attendees 2-6 can be blank
     vipTablesRoster.forEach((tbl, tIdx) => {
-      const firstPerson = tbl.attendeeNames[0];
-      if (!firstPerson || !firstPerson.trim()) {
+      validateRegistrationProfile(tbl, `vip_${tIdx}`, `ผู้ลงทะเบียนโต๊ะ VIP ที่ ${tbl.tableIndex}`);
+      if (!tbl.attendeeNames[0]?.trim()) {
         errs[`vip_${tIdx}_seat_0`] = `กรุณาระบุชื่อผู้เข้าร่วมคนที่ 1 สำหรับโต๊ะที่ ${tbl.tableIndex}`;
       }
     });
@@ -214,7 +289,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               ROYAL HILLS FEST 2026
             </span>
             <h3 className="font-display text-lg sm:text-xl font-bold text-[#FFF9ED]">
-              {step === 1 && 'ข้อมูลผู้ซื้อและผู้เข้าร่วมงาน'}
+              {step === 1 && 'ข้อมูลผู้ประสานงานและผู้เข้าร่วม'}
               {step === 2 && 'ตรวจสอบข้อมูลการลงทะเบียน'}
               {step === 3 && 'ลงทะเบียนสำเร็จ'}
               {step === 3 && 'ลงทะเบียนสำเร็จ'}
@@ -248,7 +323,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="bg-[#10140F] p-5 rounded-xl border border-[#30391E]">
                 <h4 className="font-display text-sm font-bold text-[#D8A934] uppercase tracking-wider mb-4 pb-2 border-b border-[#30391E] flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  ข้อมูลผู้ซื้อ (Buyer Information)
+                  ข้อมูลผู้ประสานงานการลงทะเบียน
                 </h4>
 
                 <div className="space-y-4 text-xs">
@@ -352,6 +427,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <span className="font-mono text-[11px] text-[#FFF9ED]">ฟรี / โต๊ะ</span>
                       </div>
 
+                      <div className="space-y-3">
+                        <h5 className="text-xs font-bold text-[#D8A934]">ข้อมูลผู้รับผิดชอบโต๊ะและรถ VIP</h5>
+                        <p className="text-[11px] leading-relaxed text-[#F3E7C8]/70">
+                          ข้อมูลชุดนี้จะอยู่ในทะเบียนรถและป้ายติดรถของโต๊ะ VIP หนึ่งโต๊ะจะได้รับ QR เข้างานและ QR รถอย่างละหนึ่งชุด
+                        </p>
+                        <RegistrationProfileFields
+                          value={table}
+                          errorPrefix={`vip_${tIdx}`}
+                          errors={errors}
+                          onChange={(key, nextValue) => {
+                            setVipTablesRoster((prev) => prev.map((item, index) => {
+                              if (index !== tIdx) return item;
+                              const next = { ...item, [key]: nextValue };
+                              if (key === 'attendeeName') {
+                                next.attendeeNames = [nextValue, ...item.attendeeNames.slice(1)];
+                              }
+                              return next;
+                            }));
+                            if (errors[`vip_${tIdx}_${key}`]) {
+                              setErrors((prev) => ({ ...prev, [`vip_${tIdx}_${key}`]: '' }));
+                            }
+                          }}
+                        />
+                      </div>
+
                       {/* 6 Attendee Name Fields */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {[1, 2, 3, 4, 5, 6].map((seatNum) => {
@@ -421,28 +521,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <span className="font-mono text-[11px] text-[#65705A]">ฟรี / คน</span>
                       </div>
 
-                      <div>
-                        <label className="block text-[#65705A] mb-1">
-                          ชื่อ-นามสกุล ผู้เข้าร่วม <span className="text-[#C96F3D]">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={att.attendeeName}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setNormalAttendees((prev) => {
-                              const next = [...prev];
-                              next[idx].attendeeName = val;
-                              return next;
-                            });
-                          }}
-                          placeholder="ชื่อ-นามสกุล"
-                          className="w-full bg-[#182719] border border-[#30391E] rounded px-3 py-1.5 text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
-                        />
-                        {errors[`norm_name_${idx}`] && (
-                          <p className="text-red-400 mt-1">{errors[`norm_name_${idx}`]}</p>
-                        )}
-                      </div>
+                      <RegistrationProfileFields
+                        value={att}
+                        errorPrefix={`norm_${idx}`}
+                        errors={errors}
+                        onChange={(key, nextValue) => {
+                          setNormalAttendees((prev) => prev.map((item, index) =>
+                            index === idx ? { ...item, [key]: nextValue } : item
+                          ));
+                          if (errors[`norm_${idx}_${key}`]) {
+                            setErrors((prev) => ({ ...prev, [`norm_${idx}_${key}`]: '' }));
+                          }
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -465,7 +556,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="space-y-6">
               <div className="bg-[#10140F] p-5 rounded-xl border border-[#30391E] space-y-4">
                 <h4 className="font-display text-sm font-bold text-[#D8A934] uppercase tracking-wider pb-2 border-b border-[#30391E]">
-                  สรุปรายการสั่งซื้อ
+                  สรุปรายการลงทะเบียน
                 </h4>
 
                 {/* Items list */}
