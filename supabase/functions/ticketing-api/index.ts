@@ -101,7 +101,7 @@ function integer(value: unknown, min: number, max: number) {
 
 async function getCustomerOrder(orderNumber: string, lookupToken: string) {
   if (!orderNumber || !/^[A-Z0-9-]{6,40}$/i.test(orderNumber) || lookupToken.length < 48 || lookupToken.length > 128) {
-    throw new ApiError(400, "กรุณาตรวจสอบเลขคำสั่งซื้อและรหัสติดตาม");
+    throw new ApiError(400, "กรุณาตรวจสอบเลขลงทะเบียนและรหัสติดตาม");
   }
   return await rpc("ticketing_get_customer_order", {
     p_order_number: orderNumber,
@@ -124,6 +124,28 @@ async function requireAdmin(request: Request) {
   const allowed = await rpc("ticketing_is_admin", { p_user_id: identity.id });
   if (allowed !== true) throw new ApiError(403, "บัญชีนี้ยังไม่ได้รับสิทธิ์ผู้ดูแลระบบ");
   return { id: identity.id, email: identity.email || "" };
+}
+
+function normalizeRegistrationProfile(value: unknown, label: string) {
+  const data = (value && typeof value === "object" ? value : {}) as JsonObject;
+  const profile = {
+    rank: text(data.rank, 100),
+    attendeeName: text(data.attendeeName, 150),
+    attendeePhone: text(data.attendeePhone, 40),
+    attendeeEmail: text(data.attendeeEmail, 254).toLowerCase(),
+    organization: text(data.organization, 200),
+    affiliation: text(data.affiliation, 200),
+    vehiclePlate: text(data.vehiclePlate, 40).replace(/\\s+/g, " ").toUpperCase(),
+  };
+  if (profile.attendeeName.length < 2) throw new ApiError(400, "กรุณากรอกชื่อผู้ลงทะเบียนของ" + label);
+  if (profile.attendeePhone.length < 6) throw new ApiError(400, "กรุณากรอกเบอร์โทรศัพท์ของ" + label);
+  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(profile.attendeeEmail)) {
+    throw new ApiError(400, "กรุณากรอกอีเมลของ" + label + "ให้ถูกต้อง");
+  }
+  if (!profile.organization) throw new ApiError(400, "กรุณาระบุหน่วยงานของ" + label);
+  if (!profile.affiliation) throw new ApiError(400, "กรุณาระบุสังกัดของ" + label);
+  if (!profile.vehiclePlate || profile.vehiclePlate.length < 2) throw new ApiError(400, "กรุณากรอกทะเบียนรถของ" + label);
+  return profile;
 }
 
 async function createOrder(body: JsonObject) {
@@ -162,33 +184,36 @@ async function createOrder(body: JsonObject) {
     const item = rawItem as JsonObject;
     const code = text(item.code, 32);
     const type = typesByCode.get(code);
-    if (!type || !type.is_active) throw new ApiError(409, "ขณะนี้ยังไม่เปิดขายบัตรออนไลน์ กรุณาติดต่อผู้จัดงาน");
+    if (!type || !type.is_active) throw new ApiError(409, "ขณะนี้ยังไม่เปิดลงทะเบียนประเภทนี้ กรุณาติดต่อผู้จัดงาน");
     if ((type.sales_start_at && Date.parse(type.sales_start_at) > Date.now()) ||
         (type.sales_end_at && Date.parse(type.sales_end_at) <= Date.now())) {
       throw new ApiError(409, "บัตรประเภทนี้อยู่นอกช่วงเวลาจำหน่าย");
     }
 
     const quantity = integer(item.quantity, 1, 10);
-    if (!quantity || quantity > type.max_per_order) throw new ApiError(400, "จำนวนบัตร " + type.name + " เกินข้อกำหนด");
+    if (!quantity || quantity > type.max_per_order) throw new ApiError(400, "จำนวนสิทธิ์ " + type.name + " เกินข้อกำหนด");
 
     if (!Array.isArray(item.attendeeData) || item.attendeeData.length !== quantity) {
       throw new ApiError(400, "ข้อมูลผู้เข้าร่วมไม่ครบตามจำนวนบัตร");
     }
 
-    const attendeeData = item.attendeeData.map((value: unknown) => {
+    const attendeeData = item.attendeeData.map((value: unknown, index: number) => {
+      const label = code === "tt-vip"
+        ? "โต๊ะ VIP ที่ " + (index + 1)
+        : "บัตรปกติใบที่ " + (index + 1);
+      const profile = normalizeRegistrationProfile(value, label);
+      if (code === "tt-normal") return profile;
+
       const data = (value && typeof value === "object" ? value : {}) as JsonObject;
-      if (code === "tt-normal") {
-        const attendeeName = text(data.attendeeName, 150);
-        if (attendeeName.length < 2) throw new ApiError(400, "กรุณากรอกชื่อผู้เข้าร่วมบัตรปกติทุกใบ");
-        return { attendeeName };
-      }
       const attendeeNames = Array.isArray(data.attendeeNames)
         ? data.attendeeNames.slice(0, 6).map((entry) => text(entry, 150))
         : [];
       if (attendeeNames.length !== 6 || attendeeNames[0].length < 2) {
-        throw new ApiError(400, "กรุณาระบุชื่อหัวหน้าโต๊ะ VIP และกรอกข้อมูลให้ครบ 6 ที่นั่ง");
+        throw new ApiError(400, "กรุณาระบุชื่อหัวหน้าโต๊ะ VIP และตรวจรายชื่อผู้เข้าร่วม");
       }
-      return { attendeeNames };
+      // Make the VIP table owner match guest seat 1, avoiding mismatched parking records.
+      attendeeNames[0] = profile.attendeeName;
+      return { ...profile, attendeeNames };
     });
 
     reservationItems.push({ ticket_type_id: type.id, quantity, attendee_data: attendeeData });
