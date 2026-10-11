@@ -4,8 +4,6 @@ import {
   CarFront,
   CheckCircle2,
   Crown,
-  ExternalLink,
-  FileCheck2,
   LogIn,
   LogOut,
   MapPin,
@@ -68,37 +66,6 @@ type LegacyVehicleDraft = {
   affiliation: string;
   vehiclePlate: string;
 };
-type PaymentReviewOrder = {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  customer_email: string;
-  amount_total_thb: number;
-  expires_at: string;
-  payment_submitted_at: string;
-  created_at: string;
-  has_proof: boolean;
-  proof_url: string | null;
-  items: Array<{ ticket_type: string; quantity: number; unit_price_thb: number }>;
-};
-const reviewOrderFromJson = (raw: Record<string, unknown>): PaymentReviewOrder => ({
-  id: stringValue(raw.id),
-  order_number: stringValue(raw.order_number),
-  customer_name: stringValue(raw.customer_name),
-  customer_email: stringValue(raw.customer_email),
-  amount_total_thb: Number(raw.amount_total_thb || 0),
-  expires_at: stringValue(raw.expires_at),
-  payment_submitted_at: stringValue(raw.payment_submitted_at),
-  created_at: stringValue(raw.created_at),
-  has_proof: raw.has_proof === true,
-  proof_url: typeof raw.proof_url === 'string' ? raw.proof_url : null,
-  items: Array.isArray(raw.items) ? raw.items.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object')).map((item) => ({
-    ticket_type: stringValue(item.ticket_type),
-    quantity: Number(item.quantity || 0),
-    unit_price_thb: Number(item.unit_price_thb || 0),
-  })) : [],
-});
-
 const stringValue = (value: unknown) => typeof value === 'string' ? value : '';
 const rowFromJson = (raw: Record<string, unknown>): VehiclePassRow => ({
   registration_code: stringValue(raw.registration_code),
@@ -138,10 +105,6 @@ export const VehicleParkingDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({ ...EMPTY_STATS });
   const [drafts, setDrafts] = useState<Record<string, DraftAssignment>>({});
   const [legacyDrafts, setLegacyDrafts] = useState<Record<string, LegacyVehicleDraft>>({});
-  const [reviewOrders, setReviewOrders] = useState<PaymentReviewOrder[]>([]);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewingOrderId, setReviewingOrderId] = useState('');
-  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
   const loadVehicles = useCallback(async (token: string) => {
     setLoading(true);
@@ -183,18 +146,6 @@ export const VehicleParkingDashboard: React.FC = () => {
     }
   }, []);
 
-  const loadPaymentReviewOrders = useCallback(async (token: string) => {
-    setReviewLoading(true);
-    try {
-      const records = await ticketingApiService.getPaymentReviewOrders(token);
-      setReviewOrders(records.map((row) => reviewOrderFromJson(row)));
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'โหลดรายการรอตรวจสอบไม่สำเร็จ');
-    } finally {
-      setReviewLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     let active = true;
     getAdminAccessToken().then((token) => {
@@ -202,10 +153,9 @@ export const VehicleParkingDashboard: React.FC = () => {
       setAccessToken(token);
       setEmail(getCachedAdminEmail());
       void loadVehicles(token);
-      void loadPaymentReviewOrders(token);
     }).catch(() => undefined);
     return () => { active = false; };
-  }, [loadVehicles, loadPaymentReviewOrders]);
+  }, [loadVehicles]);
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -217,7 +167,7 @@ export const VehicleParkingDashboard: React.FC = () => {
       setEmail(session.user.email || email);
       setPassword('');
       setNotice('เข้าสู่ระบบจัดสรรที่จอดรถแล้ว');
-      await Promise.all([loadVehicles(session.access_token), loadPaymentReviewOrders(session.access_token)]);
+      await loadVehicles(session.access_token);
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'เข้าสู่ระบบไม่สำเร็จ');
     } finally {
@@ -232,10 +182,10 @@ export const VehicleParkingDashboard: React.FC = () => {
     setVehicles([]);
     setStats({ ...EMPTY_STATS });
     setLegacyDrafts({});
-    setReviewOrders([]);
-    setReviewNotes({});
     setNotice('');
   };
+
+  const namedVipAttendees = useMemo(() => vehicles.filter((row) => row.ticket_type === 'tt-vip').reduce((count, row) => count + row.attendee_names.filter((name) => name.trim().length > 0).length, 0), [vehicles]);
 
   const filteredVehicles = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
@@ -308,40 +258,6 @@ export const VehicleParkingDashboard: React.FC = () => {
     }
   };
 
-  const handleReviewPayment = async (row: PaymentReviewOrder, action: 'approve' | 'reject') => {
-    if (!accessToken) return;
-    const note = (reviewNotes[row.id] || '').trim();
-    if (action === 'reject' && note.length < 5) {
-      setError('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษรก่อนคืนโควตา');
-      return;
-    }
-    if (row.has_proof && !row.proof_url) {
-      setError('ยังเปิดหลักฐานการชำระเงินไม่ได้ จึงไม่สามารถตัดสินรายการนี้ได้ กรุณาตรวจสอบการเชื่อมต่อพื้นที่เก็บไฟล์');
-      return;
-    }
-    const confirmMessage = action === 'approve'
-      ? 'ยืนยันว่าตรวจสอบหลักฐานแล้วและยอดชำระถูกต้อง เพื่อออกบัตรให้คำสั่งซื้อ ' + row.order_number + ' ?'
-      : 'ยืนยันว่าตรวจสอบหลักฐานแล้วและไม่รับการชำระเงิน รายการนี้จะหมดอายุและคืนโควตาบัตรให้ระบบใช่หรือไม่?';
-    if (!window.confirm(confirmMessage)) return;
-    setReviewingOrderId(row.id);
-    setError('');
-    setNotice('');
-    try {
-      const result = await ticketingApiService.reviewPaymentOrder(accessToken, row.id, action, note);
-      setReviewOrders((previous) => previous.filter((item) => item.id !== row.id));
-      setReviewNotes((previous) => ({ ...previous, [row.id]: '' }));
-      setNotice(action === 'approve'
-        ? 'อนุมัติคำสั่งซื้อ ' + row.order_number + ' แล้ว ระบบออกบัตรแล้ว กรุณาเติมข้อมูลรถเก่าต่อในรายการด้านล่าง'
-        : 'ปฏิเสธหลักฐานและคืนโควตาให้คำสั่งซื้อ ' + row.order_number + ' แล้ว');
-      await Promise.all([loadVehicles(accessToken), loadPaymentReviewOrders(accessToken)]);
-      void result;
-    } catch (reviewError) {
-      setError(reviewError instanceof Error ? reviewError.message : 'บันทึกผลตรวจสอบการชำระเงินไม่สำเร็จ');
-    } finally {
-      setReviewingOrderId('');
-    }
-  };
-
   return (
     <section className="min-h-screen bg-[#10140F] text-[#FFF9ED]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-6">
@@ -389,81 +305,28 @@ export const VehicleParkingDashboard: React.FC = () => {
               </button>
             </div>
 
-            <section className="rounded-2xl border border-amber-800/50 bg-[#182719] p-4 sm:p-5 space-y-4" aria-label="รายการชำระเงินเก่ารอตรวจสอบ">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold text-amber-300 flex items-center gap-2"><FileCheck2 className="w-5 h-5" /> รายการเก่ารอตรวจสอบการชำระเงิน</h2>
-                  <p className="text-xs text-[#B4B39C] mt-1 leading-relaxed">ตรวจหลักฐานก่อนเลือกอนุมัติหรือปฏิเสธ ระบบจะไม่คืนโควตาให้อัตโนมัติหากมีหลักฐานที่ส่งมา</p>
-                </div>
-                <button type="button" onClick={() => void loadPaymentReviewOrders(accessToken)} disabled={reviewLoading} className="self-start rounded-lg border border-amber-700/50 px-3 py-2 text-xs font-semibold text-amber-300 flex items-center gap-2 disabled:opacity-50">
-                  <RefreshCw className={reviewLoading ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'} /> รีเฟรชรายการ
-                </button>
-              </div>
-              {reviewLoading && reviewOrders.length === 0 ? (
-                <p className="text-xs text-[#B4B39C] py-3">กำลังโหลดรายการรอตรวจสอบ...</p>
-              ) : reviewOrders.length === 0 ? (
-                <p className="rounded-xl border border-[#30391E] bg-[#10140F]/50 p-4 text-sm text-[#8D987E]">ไม่มีรายการชำระเงินที่รอตรวจสอบในขณะนี้</p>
-              ) : (
-                <div className="space-y-3">
-                  {reviewOrders.map((order) => (
-                    <article key={order.id} className="rounded-xl border border-amber-900/40 bg-[#10140F]/75 p-4 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-mono text-sm font-bold text-[#FFF9ED]">{order.order_number}</p>
-                          <p className="text-sm font-semibold mt-1">{order.customer_name}</p>
-                          <p className="text-xs text-[#8D987E] break-all">{order.customer_email}</p>
-                          <p className="text-xs text-[#B4B39C] mt-2">ส่งหลักฐาน: {dateText(order.payment_submitted_at || order.created_at)}</p>
-                        </div>
-                        <div className="sm:text-right shrink-0">
-                          <p className="text-xl font-black text-[#D8A934]">฿{order.amount_total_thb.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</p>
-                          <p className="text-[11px] text-[#8D987E] mt-1">{order.items.map((item) => item.ticket_type + ' × ' + item.quantity).join(' · ') || 'ไม่พบรายละเอียดบัตร'}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {order.has_proof && order.proof_url ? (
-                          <a href={order.proof_url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-[#D8A934]/50 px-3 py-2 text-xs font-semibold text-[#D8A934] inline-flex items-center gap-2">
-                            <ExternalLink className="w-3.5 h-3.5" /> เปิดหลักฐานการชำระเงิน
-                          </a>
-                        ) : (
-                          <span className="text-xs text-amber-300">{order.has_proof ? 'เปิดหลักฐานไม่ได้ — ห้ามตัดสินรายการจนกว่าจะตรวจสอบได้' : 'ไม่มีไฟล์หลักฐานแนบอยู่กับรายการนี้'}</span>
-                        )}
-                      </div>
-                      <div>
-                        <label htmlFor={'legacy-review-note-' + order.id} className="block text-xs text-[#B4B39C] mb-1">หมายเหตุการตรวจสอบ (จำเป็นเมื่อปฏิเสธ)</label>
-                        <textarea id={'legacy-review-note-' + order.id} value={reviewNotes[order.id] || ''} onChange={(event) => setReviewNotes((previous) => ({ ...previous, [order.id]: event.target.value }))} rows={2} maxLength={500} placeholder="เช่น ตรวจไม่พบยอดเงินเข้าบัญชี หรือยืนยันยอดชำระแล้ว" className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-sm text-[#FFF9ED] outline-none focus:border-[#D8A934] placeholder:text-[#65705A]" />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button type="button" onClick={() => void handleReviewPayment(order, 'approve')} disabled={reviewingOrderId !== '' || (order.has_proof && !order.proof_url)} className="rounded-lg bg-[#D8A934] px-3 py-2.5 text-sm font-bold text-[#10140F] flex items-center justify-center gap-2 disabled:opacity-40">
-                          <CheckCircle2 className="w-4 h-4" /> {reviewingOrderId === order.id ? 'กำลังบันทึก...' : 'ยืนยันชำระแล้วและออกบัตร'}
-                        </button>
-                        <button type="button" onClick={() => void handleReviewPayment(order, 'reject')} disabled={reviewingOrderId !== '' || (order.has_proof && !order.proof_url)} className="rounded-lg border border-red-800/60 bg-red-950/20 px-3 py-2.5 text-sm font-semibold text-red-300 flex items-center justify-center gap-2 disabled:opacity-40">
-                          <AlertTriangle className="w-4 h-4" /> ปฏิเสธหลักฐานและคืนโควตา
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-[#65705A]">การปฏิเสธจะเก็บประวัติการตรวจสอบไว้ และคืนโควตาที่ถูกจองให้ระบบโดยไม่ลบคำสั่งซื้อ</p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-
             <section className="space-y-3" aria-label="สรุปจำนวนผู้ลงทะเบียน">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-[#FFF9ED]">สรุปจำนวนผู้เข้าร่วม</h2>
-                <p className="text-[11px] sm:text-xs text-[#65705A] mt-1">บัตรปกตินับ 1 คนต่อบัตร ส่วน VIP คิดตามสิทธิ์ 6 ที่นั่งต่อโต๊ะ รายชื่อที่ระบุจะแสดงในการ์ดแต่ละโต๊ะ</p>
+                <p className="text-[11px] sm:text-xs text-[#65705A] mt-1">บัตรปกตินับ 1 คนต่อบัตร ส่วน VIP แสดงแยกเป็นจำนวนโต๊ะ สิทธิ์ 6 ที่นั่งต่อโต๊ะ และจำนวนรายชื่อที่กรอกแล้ว</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
                 <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
                   <p className="text-xs text-[#65705A] flex items-center gap-2"><Ticket className="w-4 h-4" /> บัตรปกติ · คน</p>
                   <p className="text-3xl font-black text-[#FFF9ED] mt-2">{stats.normal_people}</p>
                 </div>
                 <div className="rounded-xl border border-[#D8A934]/40 bg-[#182719] p-4">
-                  <p className="text-xs text-[#D8A934] flex items-center gap-2"><Crown className="w-4 h-4" /> VIP · สิทธิ์ที่นั่ง</p>
+                  <p className="text-xs text-[#D8A934] flex items-center gap-2"><Crown className="w-4 h-4" /> VIP · ที่นั่งตามสิทธิ์</p>
                   <p className="text-3xl font-black text-[#D8A934] mt-2">{stats.vip_people} <span className="text-sm font-semibold">คน</span></p>
                 </div>
                 <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
                   <p className="text-xs text-[#65705A] flex items-center gap-2"><Users className="w-4 h-4" /> โต๊ะ VIP</p>
                   <p className="text-3xl font-black text-[#FFF9ED] mt-2">{stats.vip_tables} <span className="text-sm font-semibold">โต๊ะ</span></p>
+                </div>
+                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
+                  <p className="text-xs text-[#65705A] flex items-center gap-2"><Users className="w-4 h-4" /> รายชื่อผู้ร่วมโต๊ะ VIP</p>
+                  <p className="text-3xl font-black text-[#FFF9ED] mt-2">{namedVipAttendees} <span className="text-sm font-semibold">รายชื่อ</span></p>
+                  <p className="text-[10px] text-[#65705A] mt-1">นับจากรายชื่อในทะเบียนที่โหลดแล้ว</p>
                 </div>
                 <div className="rounded-xl border border-emerald-800/60 bg-[#182719] p-4">
                   <p className="text-xs text-emerald-300 flex items-center gap-2"><Users className="w-4 h-4" /> รวมสิทธิ์เข้าร่วม</p>

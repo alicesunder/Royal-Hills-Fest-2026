@@ -478,11 +478,8 @@ Deno.serve(async (request: Request) => {
         result = await adminRegisterLegacyVehiclePass(request, body);
         break;
       case "admin-payment-reviews":
-        result = await adminListPaymentReviewOrders(request);
-        break;
       case "review-payment-order":
-        result = await adminReviewPaymentOrder(request, body);
-        break;
+        throw new ApiError(410, "ยกเลิกระบบตรวจสอบการชำระเงินแล้ว เนื่องจากงานนี้เปิดลงทะเบียนฟรี");
       default:
         throw new ApiError(400, "ไม่รู้จักคำสั่งที่ร้องขอ");
     }
