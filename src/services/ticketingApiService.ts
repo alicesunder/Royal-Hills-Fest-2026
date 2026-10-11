@@ -1,4 +1,4 @@
-import { AttendeeInfo, CartItem, IssuedTicket, Order, TicketType, VipAttendee } from '../types';
+import { AttendeeInfo, CartItem, IssuedTicket, Order, TicketType, VipAttendee, VipTableRegistration, VehicleParkingPass } from '../types';
 import { OFFICIAL_TICKET_TYPES } from './ticketStoreService';
 
 const CREDENTIALS_STORAGE_KEY = 'rhf26_secure_order_lookup_v1';
@@ -15,7 +15,7 @@ export interface TicketingOrderInput {
   buyerEmail: string;
   cart: CartItem[];
   normalAttendees: AttendeeInfo[];
-  vipTables: { tableIndex: number; attendeeNames: string[] }[];
+  vipTables: VipTableRegistration[];
   idempotencyKey: string;
   lookupToken: string;
 }
@@ -90,18 +90,43 @@ function mapCustomerOrder(payload: JsonRecord): TicketingOrderResult {
           };
         })
       : undefined;
+    const parkingRaw = ticket.parking_pass && typeof ticket.parking_pass === 'object'
+      ? ticket.parking_pass as JsonRecord
+      : null;
+    const parkingPass: VehicleParkingPass | undefined = parkingRaw && typeof parkingRaw.qr_token === 'string'
+      ? {
+          registrationCode: String(parkingRaw.registration_code || ''),
+          qrToken: String(parkingRaw.qr_token),
+          vehiclePlate: String(parkingRaw.vehicle_plate || ''),
+          ownerRank: String(parkingRaw.owner_rank || ''),
+          ownerName: String(parkingRaw.owner_name || ''),
+          ownerPhone: String(parkingRaw.owner_phone || ''),
+          ownerEmail: String(parkingRaw.owner_email || ''),
+          organization: String(parkingRaw.organization || ''),
+          affiliation: String(parkingRaw.affiliation || ''),
+          parkingZone: typeof parkingRaw.parking_zone === 'string' ? parkingRaw.parking_zone : null,
+          parkingSlot: typeof parkingRaw.parking_slot === 'string' ? parkingRaw.parking_slot : null,
+          status: parkingRaw.status === 'cancelled' ? 'cancelled' : 'active',
+          arrivalVerifiedAt: parkingRaw.arrival_verified_at ? new Date(String(parkingRaw.arrival_verified_at)).getTime() : undefined,
+        }
+      : undefined;
     return {
       id: String(ticket.ticket_code || ticket.id || ''),
       orderId: String(rawOrder.order_number || ''),
       ticketTypeId: code,
       ticketTypeName: String(type?.name || (isVip ? 'VIP' : 'บัตรปกติ')),
-      ticketPrice: Number(type?.unit_price_thb || type?.price_thb || 0),
+      ticketPrice: 0,
       ticketKind: isVip ? 'VIP' : 'NORMAL',
       seatsCount: isVip ? 6 : 1,
       tableNumber: isVip ? String(ticket.ticket_code || '') : undefined,
-      attendeeName: String(ticket.attendee_name || ''),
-      attendeePhone: String(rawOrder.customer_phone || ''),
-      attendeeEmail: String(rawOrder.customer_email || ''),
+      rank: parkingPass?.ownerRank || '',
+      attendeeName: parkingPass?.ownerName || String(ticket.attendee_name || ''),
+      attendeePhone: parkingPass?.ownerPhone || String(rawOrder.customer_phone || ''),
+      attendeeEmail: parkingPass?.ownerEmail || String(rawOrder.customer_email || ''),
+      organization: parkingPass?.organization || '',
+      affiliation: parkingPass?.affiliation || '',
+      vehiclePlate: parkingPass?.vehiclePlate || '',
+      parkingPass,
       vipAttendees,
       qrToken: String(ticket.qr_token || ''),
       status,
@@ -261,9 +286,29 @@ export const ticketingApiService = {
   async createOrder(input: TicketingOrderInput): Promise<TicketingOrderResult> {
     const items = input.cart.map((cartItem) => {
       const isVip = cartItem.ticketType.id === 'tt-vip';
+      const cleanProfile = (profile: {
+        rank?: string;
+        attendeeName: string;
+        attendeePhone: string;
+        attendeeEmail: string;
+        organization: string;
+        affiliation: string;
+        vehiclePlate: string;
+      }) => ({
+        rank: String(profile.rank || '').trim(),
+        attendeeName: profile.attendeeName.trim(),
+        attendeePhone: profile.attendeePhone.trim(),
+        attendeeEmail: profile.attendeeEmail.trim(),
+        organization: profile.organization.trim(),
+        affiliation: profile.affiliation.trim(),
+        vehiclePlate: profile.vehiclePlate.trim(),
+      });
       const attendeeData = isVip
-        ? input.vipTables.map((table) => ({ attendeeNames: table.attendeeNames.slice(0, 6) }))
-        : input.normalAttendees.map((attendee) => ({ attendeeName: attendee.attendeeName.trim() }));
+        ? input.vipTables.map((table) => ({
+            ...cleanProfile(table),
+            attendeeNames: table.attendeeNames.slice(0, 6),
+          }))
+        : input.normalAttendees.map((attendee) => cleanProfile(attendee));
       return {
         code: cartItem.ticketType.id,
         quantity: cartItem.quantity,
