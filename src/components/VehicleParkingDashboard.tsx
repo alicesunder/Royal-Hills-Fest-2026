@@ -389,6 +389,64 @@ export const VehicleParkingDashboard: React.FC = () => {
               </button>
             </div>
 
+            <section className="rounded-2xl border border-amber-800/50 bg-[#182719] p-4 sm:p-5 space-y-4" aria-label="รายการชำระเงินเก่ารอตรวจสอบ">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-amber-300 flex items-center gap-2"><FileCheck2 className="w-5 h-5" /> รายการเก่ารอตรวจสอบการชำระเงิน</h2>
+                  <p className="text-xs text-[#B4B39C] mt-1 leading-relaxed">ตรวจหลักฐานก่อนเลือกอนุมัติหรือปฏิเสธ ระบบจะไม่คืนโควตาให้อัตโนมัติหากมีหลักฐานที่ส่งมา</p>
+                </div>
+                <button type="button" onClick={() => void loadPaymentReviewOrders(accessToken)} disabled={reviewLoading} className="self-start rounded-lg border border-amber-700/50 px-3 py-2 text-xs font-semibold text-amber-300 flex items-center gap-2 disabled:opacity-50">
+                  <RefreshCw className={reviewLoading ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'} /> รีเฟรชรายการ
+                </button>
+              </div>
+              {reviewLoading && reviewOrders.length === 0 ? (
+                <p className="text-xs text-[#B4B39C] py-3">กำลังโหลดรายการรอตรวจสอบ...</p>
+              ) : reviewOrders.length === 0 ? (
+                <p className="rounded-xl border border-[#30391E] bg-[#10140F]/50 p-4 text-sm text-[#8D987E]">ไม่มีรายการชำระเงินที่รอตรวจสอบในขณะนี้</p>
+              ) : (
+                <div className="space-y-3">
+                  {reviewOrders.map((order) => (
+                    <article key={order.id} className="rounded-xl border border-amber-900/40 bg-[#10140F]/75 p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-mono text-sm font-bold text-[#FFF9ED]">{order.order_number}</p>
+                          <p className="text-sm font-semibold mt-1">{order.customer_name}</p>
+                          <p className="text-xs text-[#8D987E] break-all">{order.customer_email}</p>
+                          <p className="text-xs text-[#B4B39C] mt-2">ส่งหลักฐาน: {dateText(order.payment_submitted_at || order.created_at)}</p>
+                        </div>
+                        <div className="sm:text-right shrink-0">
+                          <p className="text-xl font-black text-[#D8A934]">฿{order.amount_total_thb.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</p>
+                          <p className="text-[11px] text-[#8D987E] mt-1">{order.items.map((item) => item.ticket_type + ' × ' + item.quantity).join(' · ') || 'ไม่พบรายละเอียดบัตร'}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {order.has_proof && order.proof_url ? (
+                          <a href={order.proof_url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-[#D8A934]/50 px-3 py-2 text-xs font-semibold text-[#D8A934] inline-flex items-center gap-2">
+                            <ExternalLink className="w-3.5 h-3.5" /> เปิดหลักฐานการชำระเงิน
+                          </a>
+                        ) : (
+                          <span className="text-xs text-amber-300">{order.has_proof ? 'เปิดหลักฐานไม่ได้ — ห้ามตัดสินรายการจนกว่าจะตรวจสอบได้' : 'ไม่มีไฟล์หลักฐานแนบอยู่กับรายการนี้'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <label htmlFor={'legacy-review-note-' + order.id} className="block text-xs text-[#B4B39C] mb-1">หมายเหตุการตรวจสอบ (จำเป็นเมื่อปฏิเสธ)</label>
+                        <textarea id={'legacy-review-note-' + order.id} value={reviewNotes[order.id] || ''} onChange={(event) => setReviewNotes((previous) => ({ ...previous, [order.id]: event.target.value }))} rows={2} maxLength={500} placeholder="เช่น ตรวจไม่พบยอดเงินเข้าบัญชี หรือยืนยันยอดชำระแล้ว" className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-sm text-[#FFF9ED] outline-none focus:border-[#D8A934] placeholder:text-[#65705A]" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button type="button" onClick={() => void handleReviewPayment(order, 'approve')} disabled={reviewingOrderId !== '' || (order.has_proof && !order.proof_url)} className="rounded-lg bg-[#D8A934] px-3 py-2.5 text-sm font-bold text-[#10140F] flex items-center justify-center gap-2 disabled:opacity-40">
+                          <CheckCircle2 className="w-4 h-4" /> {reviewingOrderId === order.id ? 'กำลังบันทึก...' : 'ยืนยันชำระแล้วและออกบัตร'}
+                        </button>
+                        <button type="button" onClick={() => void handleReviewPayment(order, 'reject')} disabled={reviewingOrderId !== '' || (order.has_proof && !order.proof_url)} className="rounded-lg border border-red-800/60 bg-red-950/20 px-3 py-2.5 text-sm font-semibold text-red-300 flex items-center justify-center gap-2 disabled:opacity-40">
+                          <AlertTriangle className="w-4 h-4" /> ปฏิเสธหลักฐานและคืนโควตา
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#65705A]">การปฏิเสธจะเก็บประวัติการตรวจสอบไว้ และคืนโควตาที่ถูกจองให้ระบบโดยไม่ลบคำสั่งซื้อ</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <section className="space-y-3" aria-label="สรุปจำนวนผู้ลงทะเบียน">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-[#FFF9ED]">สรุปจำนวนผู้เข้าร่วม</h2>
@@ -416,21 +474,24 @@ export const VehicleParkingDashboard: React.FC = () => {
 
             <section className="space-y-3" aria-label="สถานะรถและที่จอด">
               <h2 className="text-base sm:text-lg font-bold text-[#FFF9ED]">สถานะรถและที่จอด</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
-                  <p className="text-xs text-[#65705A] flex items-center gap-2"><CarFront className="w-4 h-4" /> รถที่ลงทะเบียน</p>
+                  <p className="text-xs text-[#65705A] flex items-center gap-2"><CarFront className="w-4 h-4" /> รถที่ลงทะเบียนแล้ว</p>
                   <p className="text-3xl font-black text-[#FFF9ED] mt-2">{stats.total}</p>
                 </div>
-                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
-                  <p className="text-xs text-[#65705A] flex items-center gap-2"><MapPin className="w-4 h-4" /> จัดสรรโซนแล้ว</p>
+                <div className="rounded-xl border border-[#D8A934]/30 bg-[#182719] p-4">
+                  <p className="text-xs text-[#D8A934] flex items-center gap-2"><MapPin className="w-4 h-4" /> จัดสรรโซนแล้ว</p>
                   <p className="text-3xl font-black text-[#D8A934] mt-2">{stats.assigned}</p>
                 </div>
-                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
-                  <p className="text-xs text-[#65705A] flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> ตรวจรถขาเข้าแล้ว</p>
+                <div className="rounded-xl border border-amber-800/40 bg-[#182719] p-4">
+                  <p className="text-xs text-amber-300 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> บัตรเก่ารอเติมข้อมูลรถ</p>
+                  <p className="text-3xl font-black text-amber-300 mt-2">{stats.legacy_missing_vehicle}</p>
+                </div>
+                <div className="rounded-xl border border-emerald-800/60 bg-[#182719] p-4">
+                  <p className="text-xs text-emerald-300 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> ตรวจรถขาเข้าแล้ว</p>
                   <p className="text-3xl font-black text-emerald-300 mt-2">{stats.arrived}</p>
                 </div>
-              </div>
-            </section>
+              </div>            </section>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <h2 className="text-base sm:text-lg font-bold text-[#FFF9ED]">รายชื่อผู้ลงทะเบียนและผู้ถือบัตร</h2>
@@ -458,9 +519,9 @@ export const VehicleParkingDashboard: React.FC = () => {
                     <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-2xl sm:text-3xl font-black tracking-wide text-[#D8A934]">{row.vehicle_plate}</span>
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${arrived ? 'bg-emerald-950/50 text-emerald-300 border border-emerald-700/50' : 'bg-[#10140F] text-[#F3E7C8]/70 border border-[#30391E]'}`}>
-                            {arrived ? 'ตรวจรถขาเข้าแล้ว' : 'ยังไม่เข้าพื้นที่'}
+                          <span className="text-2xl sm:text-3xl font-black tracking-wide text-[#D8A934]">{row.vehicle_plate || (row.has_vehicle_pass ? 'ไม่ระบุทะเบียน' : 'ข้อมูลรถยังไม่ครบ')}</span>
+                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${!row.has_vehicle_pass ? 'bg-amber-950/40 text-amber-300 border border-amber-800/50' : arrived ? 'bg-emerald-950/50 text-emerald-300 border border-emerald-700/50' : 'bg-[#10140F] text-[#F3E7C8]/70 border border-[#30391E]'}`}>
+                            {!row.has_vehicle_pass ? 'บัตรเก่า · รอเติมข้อมูลรถ' : arrived ? 'ตรวจรถขาเข้าแล้ว' : 'ยังไม่เข้าพื้นที่'}
                           </span>
                           {row.ticket_type === 'tt-vip' ? (
                             <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#D8A934]/15 text-[#D8A934] border border-[#D8A934]/40">VIP · 1 โต๊ะ / 6 ที่นั่ง</span>
@@ -491,24 +552,56 @@ export const VehicleParkingDashboard: React.FC = () => {
                           <p><span className="text-[#65705A]">โทรศัพท์: </span>{row.owner_phone}</p>
                           <p className="break-all"><span className="text-[#65705A]">อีเมล: </span>{row.owner_email}</p>
                           <p><span className="text-[#65705A]">เลขลงทะเบียน: </span><span className="font-mono">{row.order_number}</span></p>
-                          <p><span className="text-[#65705A]">รหัสป้ายรถ: </span><span className="font-mono">{row.registration_code}</span></p>
+                          <p><span className="text-[#65705A]">{row.has_vehicle_pass ? 'รหัสป้ายรถ: ' : 'รหัสบัตรเดิม: '}</span><span className="font-mono">{row.has_vehicle_pass ? row.registration_code : row.ticket_code}</span></p>
                         </div>
                       </div>
-                      <div className="lg:w-80 shrink-0 rounded-xl border border-[#30391E] bg-[#10140F] p-4 space-y-3">
-                        <h3 className="text-sm font-bold text-[#D8A934] flex items-center gap-2"><MapPin className="w-4 h-4" /> จัดสรรที่จอดรถ</h3>
-                        <div>
-                          <label className="block text-[11px] text-[#F3E7C8] mb-1" htmlFor={'parking-zone-' + row.registration_code}>โซนจอดรถ</label>
-                          <input id={'parking-zone-' + row.registration_code} value={draft.zone} onChange={(event) => setDrafts((prev) => ({ ...prev, [row.registration_code]: { ...draft, zone: event.target.value } }))} placeholder="เช่น A / VIP / หน่วยงาน" className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-sm outline-none focus:border-[#D8A934]" />
+                      {!row.has_vehicle_pass ? (
+                        <div className="lg:w-80 shrink-0 rounded-xl border border-amber-800/50 bg-[#10140F] p-4 space-y-3">
+                          <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2"><CarFront className="w-4 h-4" /> เติมข้อมูลรถให้บัตรเก่า</h3>
+                          <p className="text-[10px] text-[#8D987E]">บัตรนี้ออกก่อนระบบป้ายรถปัจจุบัน กรุณาตรวจข้อมูลและกรอกส่วนที่ขาด ระบบจะออก QR ป้ายรถใหม่โดยไม่ออกบัตรเข้างานซ้ำ</p>
+                          {([
+                            ['rank', 'ยศ / ตำแหน่ง (ถ้ามี)', 'เช่น ส.ต.ต.'],
+                            ['name', 'ชื่อ-นามสกุล', 'ชื่อผู้ถือบัตร'],
+                            ['phone', 'เบอร์โทรศัพท์', 'เบอร์ที่ติดต่อได้'],
+                            ['email', 'อีเมล', 'name@example.com'],
+                            ['organization', 'หน่วยงาน', 'หน่วยงาน'],
+                            ['affiliation', 'สังกัด', 'สังกัด'],
+                            ['vehiclePlate', 'ทะเบียนรถ', 'ทะเบียนรถ'],
+                          ] as Array<[keyof LegacyVehicleDraft, string, string]>).map(([key, label, placeholder]) => (
+                            <div key={key}>
+                              <label className="block text-[11px] text-[#F3E7C8] mb-1" htmlFor={'legacy-' + key + '-' + row.ticket_code}>{label}</label>
+                              <input
+                                id={'legacy-' + key + '-' + row.ticket_code}
+                                type={key === 'email' ? 'email' : 'text'}
+                                value={legacyDraft[key]}
+                                onChange={(event) => setLegacyDrafts((previous) => ({ ...previous, [row.registration_code]: { ...legacyDraft, [key]: event.target.value } }))}
+                                placeholder={placeholder}
+                                required={key !== 'rank'}
+                                className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-sm outline-none focus:border-[#D8A934]"
+                              />
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => void handleRegisterLegacyVehicle(row)} disabled={savingCode === row.registration_code} className="w-full rounded-lg bg-[#D8A934] px-3 py-3 text-sm font-bold text-[#10140F] flex items-center justify-center gap-2 disabled:opacity-50">
+                            <Save className="w-4 h-4" /> {savingCode === row.registration_code ? 'กำลังบันทึก...' : 'บันทึกและออก QR ป้ายรถ'}
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-[11px] text-[#F3E7C8] mb-1" htmlFor={'parking-slot-' + row.registration_code}>ช่องจอดรถ (ถ้ามี)</label>
-                          <input id={'parking-slot-' + row.registration_code} value={draft.slot} onChange={(event) => setDrafts((prev) => ({ ...prev, [row.registration_code]: { ...draft, slot: event.target.value } }))} placeholder="เช่น A-012" className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-sm outline-none focus:border-[#D8A934]" />
+                      ) : (
+                        <div className="lg:w-80 shrink-0 rounded-xl border border-[#30391E] bg-[#10140F] p-4 space-y-3">
+                          <h3 className="text-sm font-bold text-[#D8A934] flex items-center gap-2"><MapPin className="w-4 h-4" /> จัดสรรที่จอดรถ</h3>
+                          <div>
+                            <label className="block text-[11px] text-[#F3E7C8] mb-1" htmlFor={'parking-zone-' + row.registration_code}>โซนจอดรถ</label>
+                            <input id={'parking-zone-' + row.registration_code} value={draft.zone} onChange={(event) => setDrafts((prev) => ({ ...prev, [row.registration_code]: { ...draft, zone: event.target.value } }))} placeholder="เช่น A / VIP / หน่วยงาน" className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-sm outline-none focus:border-[#D8A934]" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] text-[#F3E7C8] mb-1" htmlFor={'parking-slot-' + row.registration_code}>ช่องจอดรถ (ถ้ามี)</label>
+                            <input id={'parking-slot-' + row.registration_code} value={draft.slot} onChange={(event) => setDrafts((prev) => ({ ...prev, [row.registration_code]: { ...draft, slot: event.target.value } }))} placeholder="เช่น A-012" className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-sm outline-none focus:border-[#D8A934]" />
+                          </div>
+                          <button type="button" onClick={() => void handleSaveAssignment(row)} disabled={savingCode === row.registration_code} className="w-full rounded-lg bg-[#D8A934] px-3 py-3 text-sm font-bold text-[#10140F] flex items-center justify-center gap-2 disabled:opacity-50">
+                            <Save className="w-4 h-4" /> {savingCode === row.registration_code ? 'กำลังบันทึก...' : 'บันทึกการจัดสรร'}
+                          </button>
+                          <p className="text-[10px] text-[#65705A]">ช่องจอดหนึ่งช่องถูกจัดสรรให้รถที่ลงทะเบียนได้เพียงคันเดียว</p>
                         </div>
-                        <button type="button" onClick={() => void handleSaveAssignment(row)} disabled={savingCode === row.registration_code} className="w-full rounded-lg bg-[#D8A934] px-3 py-3 text-sm font-bold text-[#10140F] flex items-center justify-center gap-2 disabled:opacity-50">
-                          <Save className="w-4 h-4" /> {savingCode === row.registration_code ? 'กำลังบันทึก...' : 'บันทึกการจัดสรร'}
-                        </button>
-                        <p className="text-[10px] text-[#65705A]">ช่องจอดหนึ่งช่องถูกจัดสรรให้รถที่ลงทะเบียนได้เพียงคันเดียว</p>
-                      </div>
+                      )}                      </div>
                     </div>
                   </article>
                 );
