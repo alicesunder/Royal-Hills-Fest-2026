@@ -155,7 +155,7 @@ export const VehicleParkingDashboard: React.FC = () => {
       void loadVehicles(token);
     }).catch(() => undefined);
     return () => { active = false; };
-  }, [loadVehicles]
+  }, [loadVehicles]);
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
