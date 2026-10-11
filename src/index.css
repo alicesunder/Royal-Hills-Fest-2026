@@ -2596,3 +2596,45 @@ html{scroll-behavior:smooth}
   }
 }
 
+/* Vehicle parking pass printing: select one document at a time so the event
+   ticket and vehicle sticker never print on the same sheet. */
+@media print {
+  #my-tickets.print-mode-ticket .printable-parking-pass {
+    display: none !important;
+  }
+
+  #my-tickets.print-mode-parking .rhf-ticket-page > .printable-ticket-card,
+  #my-tickets.print-mode-parking .rhf-ticket-page > .ticket-print-hide,
+  #my-tickets.print-mode-parking .rhf-ticket-page > .grid {
+    display: none !important;
+  }
+
+  #my-tickets.print-mode-parking .rhf-ticket-page > .printable-parking-pass {
+    display: block !important;
+    width: 100% !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    padding: 8mm !important;
+    color: #10140f !important;
+    background: #fffdf7 !important;
+    border: 2px solid #d8a934 !important;
+    border-radius: 4mm !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #my-tickets.print-mode-parking .printable-parking-pass * {
+    text-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #my-tickets.print-mode-parking .parking-qr-image {
+    width: 42mm !important;
+    height: 42mm !important;
+    object-fit: contain !important;
+  }
+}
