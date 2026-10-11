@@ -225,6 +225,64 @@ export const ticketingApiService = {
     return (payload.data || {}) as JsonRecord;
   },
 
+  async getVehiclePasses(accessToken: string, limit = 200): Promise<{
+    vehicles: JsonRecord[];
+    stats: { total: number; assigned: number; arrived: number };
+  }> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'admin-vehicles', limit }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'โหลดทะเบียนรถไม่สำเร็จ');
+    }
+    const data = (payload.data && typeof payload.data === 'object' ? payload.data : {}) as JsonRecord;
+    const rawStats = (data.stats && typeof data.stats === 'object' ? data.stats : {}) as JsonRecord;
+    return {
+      vehicles: Array.isArray(data.vehicles) ? data.vehicles as JsonRecord[] : [],
+      stats: {
+        total: Number(rawStats.total || 0),
+        assigned: Number(rawStats.assigned || 0),
+        arrived: Number(rawStats.arrived || 0),
+      },
+    };
+  },
+
+  async assignVehicleParking(
+    accessToken: string,
+    registrationCode: string,
+    parkingZone: string,
+    parkingSlot: string,
+  ): Promise<JsonRecord> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'assign-parking',
+        registrationCode,
+        parkingZone,
+        parkingSlot,
+      }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'บันทึกการจัดสรรที่จอดรถไม่สำเร็จ');
+    }
+    return (payload.data || {}) as JsonRecord;
+  },
+
   createCredentials(): { idempotencyKey: string; lookupToken: string } {
     const random = new Uint8Array(32);
     crypto.getRandomValues(random);
