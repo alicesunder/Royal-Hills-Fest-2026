@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, Order, AttendeeInfo } from '../types';
-import { PROMPTPAY_QR_URL, ticketingApiService, PaymentCapabilities, ProviderPayment } from '../services/ticketingApiService';
+import { ticketingApiService } from '../services/ticketingApiService';
 import {
   X,
   ArrowRight,
@@ -34,7 +34,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderCompleted,
 }) => {
   // Step 1: Customer & Attendees, Step 2: Summary, Step 3: Payment, Step 4: Success
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Buyer Info
   const [buyerName, setBuyerName] = useState('');
@@ -50,7 +50,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const vipTableQty = vipItem?.quantity || 0;
 
   // Preview the total from the selected cart; the server recalculates it from trusted database prices.
-  const totalAmount = cart.reduce((sum, item) => sum + item.ticketType.price * item.quantity, 0);
+  const totalAmount = 0;
 
   // Normal Ticket Attendees
   const [normalAttendees, setNormalAttendees] = useState<AttendeeInfo[]>([]);
@@ -58,10 +58,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // VIP Tables Attendee Rosters: 1 entry per VIP table, each has 6 attendee names
   const [vipTablesRoster, setVipTablesRoster] = useState<{ tableIndex: number; attendeeNames: string[] }[]>([]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'QR_PROMPTPAY' | 'MOBILE_BANKING' | 'BANK_TRANSFER'>('BANK_TRANSFER');
-  const [selectedBankType, setSelectedBankType] = useState('mobile_banking_kbank');
-  const [paymentCapabilities, setPaymentCapabilities] = useState<PaymentCapabilities>({ promptpay: false, mobileBanking: false, mobileBankingBanks: [], ready: false });
-  const [providerPayment, setProviderPayment] = useState<ProviderPayment | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Server-created order and manual PromptPay proof workflow.
@@ -78,75 +74,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [paymentNotice, setPaymentNotice] = useState('');
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [copiedLookupDetails, setCopiedLookupDetails] = useState(false);
-
-  // Ask the server which automated payment channels have been enabled by the event organizer.
-  useEffect(() => {
-    let cancelled = false;
-    ticketingApiService.getPaymentCapabilities()
-      .then((capabilities) => {
-        if (cancelled) return;
-        setPaymentCapabilities(capabilities);
-        if (capabilities.promptpay) {
-          setPaymentMethod((current) => current === 'BANK_TRANSFER' ? 'QR_PROMPTPAY' : current);
-        } else if (!capabilities.mobileBanking) {
-          setPaymentMethod('BANK_TRANSFER');
-        }
-        if (capabilities.mobileBankingBanks.length > 0) {
-          setSelectedBankType((current) =>
-            capabilities.mobileBankingBanks.some((bank) => bank.type === current)
-              ? current
-              : capabilities.mobileBankingBanks[0].type
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPaymentCapabilities({ promptpay: false, mobileBanking: false, mobileBankingBanks: [], ready: false });
-          setPaymentMethod('BANK_TRANSFER');
-        }
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  // Poll the provider and our server-side order state while an automated payment is pending.
-  useEffect(() => {
-    if (step !== 3 || paymentMethod === 'BANK_TRANSFER' || !createdOrder || !lookupToken) return;
-    let cancelled = false;
-    let busy = false;
-
-    const refresh = async () => {
-      if (busy || cancelled) return;
-      busy = true;
-      try {
-        const payment = await ticketingApiService.getProviderPayment(createdOrder.id, lookupToken);
-        if (cancelled) return;
-        setProviderPayment(payment);
-
-        const result = await ticketingApiService.getOrder(createdOrder.id, lookupToken);
-        if (cancelled) return;
-        setCreatedOrder(result.order);
-        if (result.order.paymentStatus === 'PAID') {
-          setPaymentNotice('ยืนยันการชำระเงินสำเร็จ กำลังเปิดบัตรดิจิทัลของคุณ');
-          setStep(4);
-        } else if (result.order.paymentStatus === 'VERIFYING') {
-          setPaymentNotice('ผู้ให้บริการส่งสถานะที่ต้องตรวจสอบเพิ่มเติม กรุณารอผู้จัดงานยืนยัน');
-        } else if (payment.chargeStatus === 'failed' || payment.chargeStatus === 'expired') {
-          setPaymentNotice('รายการชำระเงินไม่สำเร็จหรือหมดอายุ กรุณาติดต่อผู้จัดงานก่อนชำระใหม่');
-        }
-      } catch {
-        // Temporary network/provider errors are retried on the next interval and never mark an order paid.
-      } finally {
-        busy = false;
-      }
-    };
-
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 8000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [step, paymentMethod, createdOrder?.id, lookupToken]);
 
   // Initialize Normal attendees
   useEffect(() => {
@@ -203,16 +130,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [buyerName, buyerPhone, buyerEmail, useBuyerAsFirstAttendee, vipTableQty]);
 
-  // Timer countdown for payment
-  useEffect(() => {
-    if (step === 3 && timeLeftSeconds > 0) {
-      const interval = setInterval(() => {
-        setTimeLeftSeconds((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [step, timeLeftSeconds]);
-
   const validateStep1 = (): boolean => {
     const errs: Record<string, string> = {};
     if (!buyerName.trim()) errs.buyerName = 'กรุณากรอกชื่อ-นามสกุลผู้ซื้อ';
@@ -247,15 +164,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   };
 
-  const handleProceedToPayment = async () => {
+  const handleRegisterFree = async () => {
     setCheckoutError('');
-    setPaymentNotice('');
-    setProviderPayment(null);
     setIsCreatingOrder(true);
+
     try {
-      // Reuse the same idempotency key on retry to prevent duplicate orders.
+      // Reuse the same idempotency key on retries so a double-click cannot
+      // reserve extra stock or issue duplicate QR tickets.
       const credentials = checkoutCredentials || ticketingApiService.createCredentials();
       if (!checkoutCredentials) setCheckoutCredentials(credentials);
+
       const result = await ticketingApiService.createOrder({
         buyerName: buyerName.trim(),
         buyerPhone: buyerPhone.trim(),
@@ -269,112 +187,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       setCreatedOrder(result.order);
       setLookupToken(result.credentials.lookupToken);
-      setPaymentReference('');
-      setPaymentProofFile(null);
-      setPaymentNotice('');
-      setTimeLeftSeconds(Math.max(0, Math.floor((result.order.expiresAt - Date.now()) / 1000)));
 
-      if (result.order.paymentStatus === 'PAID') {
-        setStep(4);
-        return;
+      if (result.order.paymentStatus !== 'PAID' || result.order.tickets.length < 1) {
+        throw new Error('ระบบยังยืนยันการลงทะเบียนไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้จัดงาน');
       }
 
-      if (paymentMethod !== 'BANK_TRANSFER') {
-        const providerResult = await ticketingApiService.createProviderPayment({
-          orderNumber: result.credentials.orderNumber,
-          lookupToken: result.credentials.lookupToken,
-          paymentMethod,
-          ...(paymentMethod === 'MOBILE_BANKING' ? { bankType: selectedBankType } : {}),
-        });
-        setProviderPayment(providerResult);
-        setStep(3);
-
-        if (paymentMethod === 'MOBILE_BANKING') {
-          if (!providerResult.authorizeUrl) {
-            setCheckoutError('ผู้ให้บริการยังไม่ส่งลิงก์ยืนยันการชำระเงิน กรุณาตรวจสอบสถานะกับผู้จัดงาน');
-            return;
-          }
-          // Redirect immediately while the browser still has the user-initiated checkout action.
-          window.location.assign(providerResult.authorizeUrl);
-          return;
-        }
-      } else {
-        setStep(3);
-      }
+      setStep(3);
     } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : 'ไม่สามารถสร้างคำสั่งซื้อหรือรายการชำระเงินได้ กรุณาลองใหม่');
+      setCheckoutError(error instanceof Error ? error.message : 'ลงทะเบียนไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsCreatingOrder(false);
-    }
-  };
-
-  const handleSubmitPaymentProof = async () => {
-    if (!createdOrder || !lookupToken) return;
-    setCheckoutError('');
-    setPaymentNotice('');
-    if (!PROMPTPAY_QR_URL) {
-      setCheckoutError('ผู้ดูแลยังไม่ได้ตั้งค่าภาพ QR PromptPay สำหรับรับเงิน กรุณาติดต่อผู้จัดงาน');
-      return;
-    }
-    if (!paymentReference.trim() || paymentReference.trim().length < 4) {
-      setCheckoutError('กรุณากรอกเลขอ้างอิงการโอนอย่างน้อย 4 ตัวอักษร');
-      return;
-    }
-    if (!paymentProofFile) {
-      setCheckoutError('กรุณาแนบภาพสลิปการโอนเงิน');
-      return;
-    }
-
-    setIsSubmittingProof(true);
-    try {
-      await ticketingApiService.submitProof({
-        orderNumber: createdOrder.id,
-        lookupToken,
-        paymentReference: paymentReference.trim(),
-        proof: paymentProofFile,
-      });
-      const refreshed = await ticketingApiService.getOrder(createdOrder.id, lookupToken);
-      setCreatedOrder(refreshed.order);
-      setPaymentProofFile(null);
-      setPaymentNotice('ส่งหลักฐานแล้ว ระบบกำลังรอเจ้าหน้าที่ตรวจสอบยอดเงินจริงก่อนออกบัตร');
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : 'ส่งหลักฐานไม่สำเร็จ กรุณาลองใหม่');
-    } finally {
-      setIsSubmittingProof(false);
-    }
-  };
-
-  const handleRefreshPaymentStatus = async () => {
-    if (!createdOrder || !lookupToken) return;
-    setCheckoutError('');
-    setIsRefreshingStatus(true);
-    try {
-      if (paymentMethod !== 'BANK_TRANSFER') {
-        try {
-          const payment = await ticketingApiService.getProviderPayment(createdOrder.id, lookupToken);
-          setProviderPayment(payment);
-        } catch {
-          // The payment status query below remains the source of truth for customer-facing state.
-        }
-      }
-      const refreshed = await ticketingApiService.getOrder(createdOrder.id, lookupToken);
-      setCreatedOrder(refreshed.order);
-      if (refreshed.order.paymentStatus === 'PAID') {
-        setStep(4);
-      } else if (refreshed.order.paymentStatus === 'VERIFYING') {
-        setPaymentNotice('รายการนี้ต้องให้เจ้าหน้าที่ตรวจสอบก่อนออกบัตร กรุณารอผลตรวจสอบ');
-      } else if (refreshed.order.paymentStatus === 'PENDING' && refreshed.reviewNote) {
-        setPaymentNotice('มีหมายเหตุเกี่ยวกับคำสั่งซื้อ: ' + refreshed.reviewNote);
-      } else {
-        setPaymentNotice('สถานะล่าสุด: ' + (
-          refreshed.order.paymentStatus === 'CANCELLED' ? 'ยกเลิกแล้ว' :
-          refreshed.order.paymentStatus === 'FAILED' ? 'หมดอายุหรือไม่สำเร็จ' : 'รอการชำระเงิน'
-        ));
-      }
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : 'ตรวจสอบสถานะไม่สำเร็จ กรุณาลองใหม่');
-    } finally {
-      setIsRefreshingStatus(false);
     }
   };
 
@@ -387,7 +209,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleCopyLookupDetails = async () => {
     if (!createdOrder || !lookupToken) return;
-    const details = 'ROYAL HILLS FEST 2026\nเลขคำสั่งซื้อ: ' + createdOrder.id +
+    const details = 'ROYAL HILLS FEST 2026\nเลขเลขลงทะเบียน: ' + createdOrder.id +
       '\nรหัสติดตามส่วนตัว: ' + lookupToken +
       '\nเก็บรหัสนี้เป็นส่วนตัว ใช้ตรวจสอบสถานะคำสั่งซื้อของคุณ';
     try {
@@ -397,12 +219,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     } catch {
       setCheckoutError('คัดลอกอัตโนมัติไม่ได้ กรุณาเลือกและคัดลอกรหัสติดตามด้วยตนเอง');
     }
-  };
-
-  const formatTimer = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -417,11 +233,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <h3 className="font-display text-lg sm:text-xl font-bold text-[#FFF9ED]">
               {step === 1 && 'ข้อมูลผู้ซื้อและผู้เข้าร่วมงาน'}
               {step === 2 && 'สรุปรายการสั่งซื้อ'}
-              {step === 3 && 'ชำระเงินค่าบัตร'}
-              {step === 4 && 'ชำระเงินสำเร็จ'}
+              {step === 3 && 'ลงทะเบียนสำเร็จ'}
+              {step === 3 && 'ลงทะเบียนสำเร็จ'}
             </h3>
           </div>
-          {step !== 4 && (
+          {step !== 3 && (
             <button
               onClick={onClose}
               className="cursor-pointer text-[#F3E7C8]/70 hover:text-[#FFF9ED] p-1 rounded-full hover:bg-[#30391E] transition-colors"
@@ -437,9 +253,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           <span>&rarr;</span>
           <span className={step >= 2 ? 'text-[#D8A934] font-semibold' : ''}>2. ตรวจสอบ</span>
           <span>&rarr;</span>
-          <span className={step >= 3 ? 'text-[#D8A934] font-semibold' : ''}>3. ชำระเงิน</span>
-          <span>&rarr;</span>
-          <span className={step === 4 ? 'text-emerald-400 font-semibold' : ''}>4. รับบัตร</span>
+          <span className={step === 3 ? 'text-emerald-400 font-semibold' : ''}>3. รับ QR</span>
         </div>
 
         {/* BODY CONTENT */}
@@ -552,7 +366,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <Users className="w-4 h-4" />
                           โต๊ะ VIP ที่ {table.tableIndex} (1 โต๊ะ / 6 ที่นั่ง)
                         </span>
-                        <span className="font-mono text-[11px] text-[#FFF9ED]">5,555 บาท</span>
+                        <span className="font-mono text-[11px] text-[#FFF9ED]">ฟรี / โต๊ะ</span>
                       </div>
 
                       {/* 6 Attendee Name Fields */}
@@ -621,7 +435,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     >
                       <div className="flex items-center justify-between text-[#D8A934] font-semibold">
                         <span>บัตรปกติ ใบที่ #{idx + 1}</span>
-                        <span className="font-mono text-[11px] text-[#65705A]">555 บาท / คน</span>
+                        <span className="font-mono text-[11px] text-[#65705A]">ฟรี / คน</span>
                       </div>
 
                       <div>
@@ -677,10 +491,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="flex items-center justify-between py-2 border-b border-[#30391E]/40">
                       <div>
                         <p className="font-semibold text-[#FFF9ED]">บัตรปกติ</p>
-                        <p className="text-[#65705A]">฿{(normalItem?.ticketType.price || 555).toLocaleString()} × {normalQty} คน</p>
+                        <p className="text-[#65705A]">สมัครฟรี · {normalQty} คน</p>
                       </div>
                       <div className="font-mono font-bold text-[#FFF9ED]">
-                        ฿{(normalQty * (normalItem?.ticketType.price || 555)).toLocaleString()}
+                        ฟรี
                       </div>
                     </div>
                   )}
@@ -693,11 +507,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           บัตร VIP (1 โต๊ะ / 6 ที่นั่ง)
                         </p>
                         <p className="text-[#65705A]">
-                          ฿{(vipItem?.ticketType.price || 5555).toLocaleString()} × {vipTableQty} โต๊ะ ({vipTableQty * 6} ที่นั่ง)
+                          สมัครฟรี · {vipTableQty} โต๊ะ ({vipTableQty * 6} ที่นั่ง)
                         </p>
                       </div>
                       <div className="font-mono font-bold text-[#D8A934]">
-                        ฿{(vipTableQty * (vipItem?.ticketType.price || 5555)).toLocaleString()}
+                        ฟรี
                       </div>
                     </div>
                   )}
@@ -705,8 +519,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="flex items-center justify-between pt-3 text-sm font-bold">
                     <span className="text-[#FFF9ED]">ยอดรวมทั้งหมด</span>
                     <span className="font-mono text-2xl text-[#D8A934]">
-                      ฿{totalAmount.toLocaleString()}{' '}
-                      <span className="text-xs text-[#65705A] font-normal">THB</span>
+                      ฟรี
                     </span>
                   </div>
                 </div>
@@ -720,7 +533,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <span>เบอร์โทร:</span> <strong className="text-[#FFF9ED]">{buyerPhone}</strong>
                   </div>
                   <div className="col-span-2">
-                    <span>อีเมลรับบัตร:</span>{' '}
+                    <span>อีเมลติดต่อ:</span>{' '}
                     <strong className="text-[#FFF9ED]">{buyerEmail}</strong>
                   </div>
                 </div>
@@ -728,70 +541,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {checkoutError && <p role="alert" className="rounded-lg border border-red-500/40 bg-red-950/20 p-3 text-xs text-red-200">{checkoutError}</p>}
 
-              {/* Payment method selection. Automated channels stay unavailable until server-side Opn secrets and merchant capabilities are configured. */}
-              <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 space-y-3 text-left">
+              <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 space-y-2 text-left">
                 <h4 className="text-sm font-bold text-[#D8A934] flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" /> เลือกช่องทางชำระเงิน
+                  <Ticket className="w-4 h-4" /> ลงทะเบียนโดยไม่มีค่าใช้จ่าย
                 </h4>
-
-                <label className={`flex items-start gap-3 rounded-xl border p-3 ${paymentCapabilities.promptpay ? 'border-[#D8A934]/50 cursor-pointer hover:bg-[#182719]' : 'border-[#30391E] opacity-60 cursor-not-allowed'}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    checked={paymentMethod === 'QR_PROMPTPAY'}
-                    disabled={!paymentCapabilities.promptpay}
-                    onChange={() => setPaymentMethod('QR_PROMPTPAY')}
-                    className="mt-1 accent-[#D8A934]"
-                  />
-                  <span className="flex-1">
-                    <span className="block text-xs font-bold text-[#FFF9ED]">PromptPay QR · ยืนยันเงินอัตโนมัติ</span>
-                    <span className="block text-[11px] text-[#65705A] mt-1">
-                      {paymentCapabilities.promptpay ? 'สแกน QR ตามยอดคำสั่งซื้อ และระบบจะตรวจสอบสถานะให้อัตโนมัติ' : 'รอผู้จัดงานตั้งค่า API Key และเปิดใช้ PromptPay กับผู้ให้บริการ'}
-                    </span>
-                  </span>
-                </label>
-
-                <label className={`flex items-start gap-3 rounded-xl border p-3 ${paymentCapabilities.mobileBanking ? 'border-[#D8A934]/50 cursor-pointer hover:bg-[#182719]' : 'border-[#30391E] opacity-60 cursor-not-allowed'}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    checked={paymentMethod === 'MOBILE_BANKING'}
-                    disabled={!paymentCapabilities.mobileBanking}
-                    onChange={() => setPaymentMethod('MOBILE_BANKING')}
-                    className="mt-1 accent-[#D8A934]"
-                  />
-                  <span className="flex-1">
-                    <span className="block text-xs font-bold text-[#FFF9ED]">Mobile Banking · ไปยังแอปธนาคาร</span>
-                    <span className="block text-[11px] text-[#65705A] mt-1">
-                      {paymentCapabilities.mobileBanking ? 'เลือกธนาคาร แล้วทำรายการผ่านหน้าชำระเงินของผู้ให้บริการ' : 'รอผู้จัดงานเปิดใช้ Mobile Banking กับผู้ให้บริการ'}
-                    </span>
-                    {paymentCapabilities.mobileBanking && paymentMethod === 'MOBILE_BANKING' && (
-                      <select
-                        value={selectedBankType}
-                        onChange={(event) => setSelectedBankType(event.target.value)}
-                        className="mt-3 w-full rounded-lg border border-[#30391E] bg-[#10140F] px-3 py-2 text-xs text-[#FFF9ED]"
-                      >
-                        {paymentCapabilities.mobileBankingBanks.map((bank) => (
-                          <option key={bank.type} value={bank.type}>{bank.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </span>
-                </label>
-
-                <label className="flex items-start gap-3 rounded-xl border border-[#30391E] p-3 cursor-pointer hover:bg-[#182719]">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    checked={paymentMethod === 'BANK_TRANSFER'}
-                    onChange={() => setPaymentMethod('BANK_TRANSFER')}
-                    className="mt-1 accent-[#D8A934]"
-                  />
-                  <span className="flex-1">
-                    <span className="block text-xs font-bold text-[#FFF9ED]">โอน PromptPay พร้อมแนบสลิป</span>
-                    <span className="block text-[11px] text-[#65705A] mt-1">ใช้ช่องทางเดิม และรอเจ้าหน้าที่ตรวจสอบยอดเงินจริงก่อนออกบัตร</span>
-                  </span>
-                </label>
+                <p className="text-xs leading-relaxed text-[#F3E7C8]/80">
+                  ไม่มีการชำระเงินและไม่ต้องแนบสลิป เมื่อยืนยันแล้วระบบจะบันทึกข้อมูลผู้เข้าร่วม ออกบัตรดิจิทัลพร้อม QR Code และเก็บจำนวนสิทธิ์ไว้ในระบบ
+                </p>
               </div>
 
               {/* Actions */}
@@ -807,191 +563,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <button
                   type="button"
-                  onClick={handleProceedToPayment}
+                  onClick={handleRegisterFree}
                   disabled={isCreatingOrder}
                   className="cursor-pointer flex items-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-6 py-3.5 rounded-xl shadow-lg shadow-[#D8A934]/25 transition-all disabled:opacity-50"
                 >
-                  {isCreatingOrder ? 'กำลังสร้างคำสั่งซื้อ...' : 'ยืนยันและไปหน้าชำระเงิน'}
+                  {isCreatingOrder ? 'กำลังลงทะเบียน...' : 'ยืนยันการใช้ฟรีเรจิสเตอร์'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* STEP 3: หน้าชำระเงิน (Payment Gateway) */}
-          {step === 3 && createdOrder && (
-            <div className="space-y-6 text-center">
-              {/* Payment Timer */}
-              <div className="inline-flex items-center gap-2 bg-[#10140F] px-4 py-1.5 rounded-full border border-[#30391E] text-xs font-mono text-[#D8A934]">
-                <Clock className="w-3.5 h-3.5" />
-                <span>เวลาที่เหลือสำหรับชำระเงิน: {formatTimer(timeLeftSeconds)}</span>
-              </div>
-
-              <div className="bg-[#10140F] p-6 rounded-2xl border border-[#30391E] max-w-sm mx-auto shadow-inner">
-                <p className="text-xs uppercase text-[#65705A] tracking-wider mb-1">
-                  ยอดชำระเงินทั้งหมด
-                </p>
-                <p className="font-mono text-3xl font-bold text-[#D8A934] mb-3">
-                  ฿{createdOrder.totalAmount.toLocaleString()} <span className="text-xs text-[#65705A]">THB</span>
-                </p>
-
-                {paymentMethod === 'BANK_TRANSFER' ? (
-                  PROMPTPAY_QR_URL ? (
-                    <div className="space-y-3">
-                      <div className="p-3 bg-white rounded-xl inline-block shadow-md">
-                        <img src={PROMPTPAY_QR_URL} alt="QR PromptPay สำหรับชำระเงิน" className="w-52 h-52 mx-auto object-contain" />
-                      </div>
-                      <p className="text-[11px] text-[#F3E7C8]/80">
-                        โอนตามยอดคำสั่งซื้อ แล้วกรอกเลขอ้างอิงและแนบสลิปด้านล่าง
-                      </p>
-                      <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                        ช่องทางนี้ยังต้องรอเจ้าหน้าที่ตรวจสอบรายการเงินจริงก่อนออกบัตร
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-left text-xs text-amber-100">
-                      ผู้ดูแลยังไม่ได้ตั้งค่าภาพ QR PromptPay กรุณาติดต่อผู้จัดงานก่อนโอนเงิน
-                    </div>
-                  )
-                ) : paymentMethod === 'QR_PROMPTPAY' ? (
-                  providerPayment?.qrImageUrl ? (
-                    <div className="space-y-3">
-                      <div className="p-3 bg-white rounded-xl inline-block shadow-md">
-                        <img src={providerPayment.qrImageUrl} alt="QR PromptPay สำหรับคำสั่งซื้อนี้" className="w-56 h-56 mx-auto object-contain" />
-                      </div>
-                      <p className="text-[11px] text-[#F3E7C8]/80">สแกน QR นี้ด้วยแอปธนาคาร ระบบผูกยอดและเลขคำสั่งซื้อไว้แล้ว</p>
-                      <p className="text-[11px] text-emerald-200">หลังชำระสำเร็จ ระบบจะยืนยันเงินและออกตั๋วให้อัตโนมัติ ไม่ต้องแนบสลิป</p>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-xs text-amber-100">
-                      {providerPayment?.chargeStatus === 'failed' || providerPayment?.chargeStatus === 'expired'
-                        ? 'รายการชำระเงินนี้ไม่สำเร็จหรือหมดอายุ กรุณาติดต่อผู้จัดงานก่อนสร้างรายการใหม่'
-                        : 'กำลังโหลด QR จากผู้ให้บริการ หากยังไม่แสดง กรุณากดตรวจสอบสถานะอีกครั้ง'}
-                    </div>
-                  )
-                ) : (
-                  <div className="space-y-3">
-                    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-[#D8A934]/40 bg-[#182719]">
-                      <Building className="h-10 w-10 text-[#D8A934]" />
-                    </div>
-                    <p className="text-sm font-bold text-[#FFF9ED]">ชำระผ่าน {providerPayment?.bankName || 'Mobile Banking'}</p>
-                    <p className="text-xs text-[#F3E7C8]/80">ระบบจะเปิดหน้าผู้ให้บริการเพื่อให้คุณยืนยันผ่านแอปธนาคาร หลังชำระสำเร็จให้กลับมาหน้านี้เพื่อรับตั๋ว</p>
-                    {providerPayment?.authorizeUrl && (
-                      <a
-                        href={providerPayment.authorizeUrl}
-                        className="inline-flex items-center justify-center rounded-lg bg-[#D8A934] px-5 py-3 text-xs font-bold text-[#10140F]"
-                      >
-                        เปิดหน้าชำระเงินอีกครั้ง
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 text-left space-y-3">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#65705A]">เลขคำสั่งซื้อ</p>
-                  <p className="font-mono text-sm font-bold text-[#D8A934] break-all">{createdOrder.id}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#65705A]">รหัสติดตามส่วนตัว (Order access key)</p>
-                  <p className="font-mono text-xs text-[#F3E7C8] break-all select-all">{lookupToken}</p>
-                </div>
-                <p className="text-[11px] text-[#F3E7C8]/70 leading-relaxed">
-                  เก็บเลขคำสั่งซื้อและรหัสติดตามนี้ไว้ ใช้เปิดดูสถานะหรือบัตรภายหลัง ห้ามแชร์รหัสติดตามกับผู้อื่น
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopyLookupDetails}
-                  className="w-full rounded-lg border border-[#30391E] bg-[#182719] px-3 py-2.5 text-xs font-bold text-[#D8A934] flex items-center justify-center gap-2"
-                >
-                  {copiedLookupDetails ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copiedLookupDetails ? 'คัดลอกข้อมูลแล้ว' : 'คัดลอกเลขคำสั่งซื้อและรหัสติดตาม'}
-                </button>
-              </div>
-
-              {paymentMethod === 'BANK_TRANSFER' ? (
-                createdOrder.paymentStatus === 'VERIFYING' ? (
-                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-left space-y-2">
-                    <p className="text-sm font-bold text-emerald-300">ได้รับหลักฐานแล้ว · รอตรวจสอบ</p>
-                    <p className="text-xs leading-relaxed text-[#F3E7C8]/80">เจ้าหน้าที่จะตรวจสอบยอดเงินจริงก่อนอนุมัติและออกบัตร</p>
-                    {paymentNotice && <p className="text-xs text-emerald-200">{paymentNotice}</p>}
-                    <button type="button" onClick={handleRefreshPaymentStatus} disabled={isRefreshingStatus} className="w-full py-3 rounded-xl border border-emerald-500/40 text-emerald-200 hover:bg-emerald-950/40 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-2">
-                      <ShieldCheck className="w-4 h-4" />
-                      {isRefreshingStatus ? 'กำลังตรวจสอบ...' : 'ตรวจสอบสถานะอีกครั้ง'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3 pt-2 text-left">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#F3E7C8] mb-1">เลขอ้างอิงการโอน / Transaction reference</label>
-                      <input
-                        value={paymentReference}
-                        onChange={(e) => setPaymentReference(e.target.value)}
-                        maxLength={100}
-                        placeholder="กรอกเลขอ้างอิงจากสลิป"
-                        className="w-full bg-[#10140F] border border-[#30391E] rounded-lg px-3 py-3 text-sm text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-[#F3E7C8] mb-1">แนบภาพสลิปการโอน (JPG, PNG หรือ WebP ไม่เกิน 5 MB)</label>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
-                        className="block w-full text-xs text-[#F3E7C8] file:mr-3 file:rounded-lg file:border-0 file:bg-[#D8A934] file:px-3 file:py-2 file:font-bold file:text-[#10140F] file:cursor-pointer"
-                      />
-                      {paymentProofFile && <p className="mt-1 text-[11px] text-[#65705A]">ไฟล์ที่เลือก: {paymentProofFile.name} ({(paymentProofFile.size / 1024 / 1024).toFixed(2)} MB)</p>}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleSubmitPaymentProof}
-                      disabled={isSubmittingProof || !PROMPTPAY_QR_URL || timeLeftSeconds <= 0}
-                      className="w-full py-4 rounded-xl bg-gradient-to-r from-[#D8A934] to-[#c4982c] hover:brightness-110 text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
-                      {isSubmittingProof ? 'กำลังส่งหลักฐาน...' : 'แจ้งโอนเงินและส่งสลิป'}
-                    </button>
-                    <p className="text-[11px] text-[#65705A] leading-relaxed">การแนบสลิปเป็นเพียงการแจ้งโอน ระบบจะยังไม่ออกบัตรจนกว่าเจ้าหน้าที่ตรวจยอดเงินจริงและอนุมัติ</p>
-                  </div>
-                )
-              ) : (
-                <div className="rounded-xl border border-[#D8A934]/40 bg-[#10140F] p-4 sm:p-5 text-left space-y-3">
-                  <p className="text-sm font-bold text-[#D8A934]">
-                    {createdOrder.paymentStatus === 'PAID' ? 'ชำระเงินยืนยันแล้ว' : 'รอการยืนยันการชำระเงินอัตโนมัติ'}
-                  </p>
-                  <p className="text-xs leading-relaxed text-[#F3E7C8]/80">
-                    {createdOrder.paymentStatus === 'PAID'
-                      ? 'ชำระเงินสำเร็จแล้ว ระบบกำลังเตรียมตั๋วดิจิทัล'
-                      : providerPayment?.chargeStatus === 'failed' || providerPayment?.chargeStatus === 'expired'
-                        ? 'รายการชำระเงินไม่สำเร็จหรือหมดอายุ กรุณาติดต่อผู้จัดงานเพื่อดำเนินการต่อ อย่าชำระซ้ำจาก QR เดิม'
-                        : 'ระบบกำลังตรวจสอบสถานะจากผู้ให้บริการเป็นระยะ ไม่ต้องแนบสลิปและไม่ต้องส่งหลักฐาน'}
-                  </p>
-                  {providerPayment?.chargeStatus && (
-                    <p className="text-[11px] text-[#65705A]">สถานะจากผู้ให้บริการ: {providerPayment.chargeStatus}</p>
-                  )}
-                  {paymentNotice && <p className="text-xs text-emerald-200">{paymentNotice}</p>}
-                  <button
-                    type="button"
-                    onClick={handleRefreshPaymentStatus}
-                    disabled={isRefreshingStatus}
-                    className="w-full py-3 rounded-xl border border-[#D8A934]/40 text-[#D8A934] hover:bg-[#182719] disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-2"
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                    {isRefreshingStatus ? 'กำลังตรวจสอบ...' : 'ตรวจสอบสถานะการชำระเงิน'}
-                  </button>
-                </div>
-              )}
-
-              {paymentNotice && createdOrder.paymentStatus !== 'VERIFYING' && (
-                <p className="text-xs text-emerald-200">{paymentNotice}</p>
-              )}
-              {checkoutError && <p role="alert" className="rounded-lg border border-red-500/40 bg-red-950/20 p-3 text-xs text-red-200">{checkoutError}</p>}
-            </div>
-          )}
-
           {/* STEP 4: สำเร็จ (Success) */}
-          {step === 4 && createdOrder && createdOrder.paymentStatus === 'PAID' && (
+          {step === 3 && createdOrder && createdOrder.paymentStatus === 'PAID' && createdOrder.tickets.length > 0 && (
             <div className="text-center py-6 space-y-6">
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center mx-auto shadow-xl">
                 <Check className="w-8 h-8" />
@@ -999,10 +583,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <div>
                 <span className="text-xs font-mono uppercase tracking-widest text-emerald-400">
-                  PAYMENT SUCCESSFUL
+                  REGISTRATION COMPLETE
                 </span>
                 <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#FFF9ED] mt-1">
-                  ชำระเงินและออกบัตรสำเร็จ!
+                  ลงทะเบียนสำเร็จและออกบัตรแล้ว!
                 </h3>
                 <p className="text-xs sm:text-sm text-[#F3E7C8]/80 mt-2 max-w-md mx-auto">
                   ขอบคุณที่ร่วมเป็นส่วนหนึ่งของเทศกาล ROYAL HILLS FEST 2026 บัตรดิจิทัลและ QR Code พร้อมใช้งานแล้ว
