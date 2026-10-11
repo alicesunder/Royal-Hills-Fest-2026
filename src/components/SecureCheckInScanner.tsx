@@ -8,6 +8,18 @@ type ScanResult = {
   outcome: string;
   ticket_code?: string | null;
   ticket_id?: string | null;
+  registration_code?: string | null;
+  vehicle_plate?: string | null;
+  owner_rank?: string | null;
+  owner_name?: string | null;
+  owner_phone?: string | null;
+  owner_email?: string | null;
+  organization?: string | null;
+  affiliation?: string | null;
+  parking_zone?: string | null;
+  parking_slot?: string | null;
+  status?: string | null;
+  scan_count?: number | null;
   idempotent_replay?: boolean;
 };
 
@@ -55,6 +67,7 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
   const [cameraError, setCameraError] = useState('');
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanMode, setScanMode] = useState<'ticket' | 'vehicle'>('ticket');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -108,12 +121,26 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
     }
 
     try {
-      const result = await ticketingApiService.checkInTicket(accessToken, qrToken);
+      const result = scanMode === 'vehicle'
+        ? await ticketingApiService.checkVehiclePass(accessToken, qrToken)
+        : await ticketingApiService.checkInTicket(accessToken, qrToken);
       const normalized = String(result.outcome || 'invalid');
       setScanResult({
         outcome: normalized,
         ticket_code: typeof result.ticket_code === 'string' ? result.ticket_code : null,
         ticket_id: typeof result.ticket_id === 'string' ? result.ticket_id : null,
+        registration_code: typeof result.registration_code === 'string' ? result.registration_code : null,
+        vehicle_plate: typeof result.vehicle_plate === 'string' ? result.vehicle_plate : null,
+        owner_rank: typeof result.owner_rank === 'string' ? result.owner_rank : null,
+        owner_name: typeof result.owner_name === 'string' ? result.owner_name : null,
+        owner_phone: typeof result.owner_phone === 'string' ? result.owner_phone : null,
+        owner_email: typeof result.owner_email === 'string' ? result.owner_email : null,
+        organization: typeof result.organization === 'string' ? result.organization : null,
+        affiliation: typeof result.affiliation === 'string' ? result.affiliation : null,
+        parking_zone: typeof result.parking_zone === 'string' ? result.parking_zone : null,
+        parking_slot: typeof result.parking_slot === 'string' ? result.parking_slot : null,
+        status: typeof result.status === 'string' ? result.status : null,
+        scan_count: typeof result.scan_count === 'number' ? result.scan_count : null,
         idempotent_replay: result.idempotent_replay === true,
       });
       setManualCode('');
@@ -129,7 +156,7 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
       busyRef.current = false;
       setBusy(false);
     }
-  }, [accessToken, stopCamera]);
+  }, [accessToken, stopCamera, scanMode]);
 
   useEffect(() => {
     if (accessToken && initialCode && initialCodeHandledRef.current !== initialCode) {
@@ -235,7 +262,31 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
     void processCode(manualCode);
   };
 
-  const resultView = scanResult ? outcomeCopy[scanResult.outcome] : null;
+  const vehicleOutcomeCopy: Record<string, { title: string; body: string; style: string }> = {
+    accepted: {
+      title: 'ตรวจสอบรถสำเร็จ',
+      body: 'ข้อมูลทะเบียนรถและผู้รับผิดชอบตรงกับรายการลงทะเบียน บันทึกการตรวจรถขาเข้าแล้ว',
+      style: 'border-emerald-700/70 bg-emerald-950/30 text-emerald-200',
+    },
+    duplicate: {
+      title: 'รถคันนี้ผ่านการตรวจแล้ว',
+      body: 'ระบบมีประวัติตรวจรถขาเข้ารายการนี้แล้ว ตรวจสอบข้อมูลเจ้าของรถด้านล่างก่อนดำเนินการ',
+      style: 'border-amber-700/70 bg-amber-950/30 text-amber-200',
+    },
+    invalid: {
+      title: 'ไม่พบข้อมูลรถ',
+      body: 'QR ไม่ถูกต้องหรือไม่ใช่ป้ายรถที่ออกจากระบบนี้',
+      style: 'border-red-700/70 bg-red-950/30 text-red-200',
+    },
+    cancelled: {
+      title: 'ป้ายรถถูกยกเลิก',
+      body: 'รายการนี้ถูกยกเลิก โปรดติดต่อผู้ดูแลก่อนอนุญาตให้รถเข้าพื้นที่',
+      style: 'border-red-700/70 bg-red-950/30 text-red-200',
+    },
+  };
+  const resultView = scanResult
+    ? (scanMode === 'vehicle' ? vehicleOutcomeCopy[scanResult.outcome] : outcomeCopy[scanResult.outcome])
+    : null;
 
   return (
     <section className="py-16 sm:py-24 bg-[#10140F] min-h-screen text-[#FFF9ED]">
@@ -244,9 +295,9 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
           <div className="inline-flex items-center gap-2 text-xs font-mono font-semibold text-[#D8A934] uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4" /> SECURE GATE CHECK-IN
           </div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold mt-2">ระบบสแกนเช็กอินหน้างาน</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold mt-2">ระบบตรวจสอบ QR หน้างาน</h1>
           <p className="text-xs sm:text-sm text-[#F3E7C8]/70 mt-2 leading-relaxed">
-            ต้องเข้าสู่ระบบผู้ดูแลก่อนทุกครั้ง ระบบจะตรวจว่าบัตรชำระเงินแล้วและยังไม่เคยเช็กอิน
+            เลือกโหมดตรวจสอบตั๋วเข้างานหรือป้ายรถ เจ้าหน้าที่ต้องเข้าสู่ระบบก่อนทุกครั้ง
           </p>
         </header>
 
@@ -296,10 +347,28 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
               </button>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-2xl border border-[#30391E] bg-[#182719] p-3">
+              <button
+                type="button"
+                aria-pressed={scanMode === 'ticket'}
+                onClick={() => { setScanMode('ticket'); setScanResult(null); setError(''); setNotice(''); }}
+                className={`rounded-xl px-4 py-3 text-sm font-bold border transition-colors ${scanMode === 'ticket' ? 'bg-[#D8A934] text-[#10140F] border-[#D8A934]' : 'bg-[#10140F] text-[#F3E7C8] border-[#30391E]'}`}
+              >
+                <Ticket className="w-4 h-4 inline mr-2" /> QR ตั๋วเข้างาน
+              </button>
+              <button
+                type="button"
+                aria-pressed={scanMode === 'vehicle'}
+                onClick={() => { setScanMode('vehicle'); setScanResult(null); setError(''); setNotice(''); }}
+                className={`rounded-xl px-4 py-3 text-sm font-bold border transition-colors ${scanMode === 'vehicle' ? 'bg-[#D8A934] text-[#10140F] border-[#D8A934]' : 'bg-[#10140F] text-[#F3E7C8] border-[#30391E]'}`}
+              >
+                <QrCode className="w-4 h-4 inline mr-2" /> QR ป้ายติดรถ
+              </button>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <div className="rounded-2xl border border-[#30391E] bg-[#182719] p-4 sm:p-5 space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-bold text-[#D8A934] flex items-center gap-2"><Camera className="w-4 h-4" /> กล้องสแกน QR</h2>
+                  <h2 className="font-bold text-[#D8A934] flex items-center gap-2"><Camera className="w-4 h-4" /> {scanMode === 'vehicle' ? 'ตรวจสอบรถและเจ้าของรถ' : 'สแกนตั๋วเข้างาน'}</h2>
                   {!cameraActive ? (
                     <button type="button" onClick={() => void handleStartCamera()} disabled={busy} className="rounded-lg bg-[#D8A934] px-3 py-2 text-xs font-bold text-[#10140F] flex items-center gap-2 disabled:opacity-50">
                       <Camera className="w-4 h-4" /> เปิดกล้อง
@@ -316,28 +385,28 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
                   {!cameraActive && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#65705A]">
                       <QrCode className="w-10 h-10" />
-                      <p className="text-xs">เปิดกล้องเพื่อสแกนบัตร</p>
+                      <p className="text-xs">เปิดกล้องเพื่อสแกน{scanMode === 'vehicle' ? 'ป้ายรถ' : 'ตั๋วเข้างาน'}</p>
                     </div>
                   )}
                   {busy && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-sm text-[#D8A934]">
-                      <RefreshCw className="w-5 h-5 animate-spin mr-2" /> กำลังตรวจสอบบัตร...
+                      <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {scanMode === 'vehicle' ? 'กำลังตรวจสอบทะเบียนรถ...' : 'กำลังตรวจสอบบัตร...'}
                     </div>
                   )}
                 </div>
                 {cameraError && <p role="alert" className="text-xs text-amber-200">{cameraError}</p>}
                 <form onSubmit={handleManualSearch} className="space-y-2">
-                  <label htmlFor="secure-gate-code" className="block text-xs text-[#F3E7C8]">หรือกรอกรหัส QR ด้วยตนเอง</label>
+                  <label htmlFor="secure-gate-code" className="block text-xs text-[#F3E7C8]">หรือกรอกรหัส QR {scanMode === 'vehicle' ? 'ป้ายรถ' : 'ตั๋วเข้างาน'} ด้วยตนเอง</label>
                   <input
                     id="secure-gate-code"
                     value={manualCode}
                     onChange={(event) => setManualCode(event.target.value)}
                     autoComplete="off"
-                    placeholder="วางรหัส QR ที่อ่านได้"
+                    placeholder={scanMode === 'vehicle' ? 'วางรหัส QR ป้ายรถที่อ่านได้' : 'วางรหัส QR ตั๋วเข้างานที่อ่านได้'}
                     className="w-full rounded-xl bg-[#10140F] border border-[#30391E] px-4 py-3 text-sm outline-none focus:border-[#D8A934]"
                   />
                   <button type="submit" disabled={busy || !manualCode.trim()} className="w-full rounded-xl border border-[#D8A934]/50 px-4 py-3 text-sm font-bold text-[#D8A934] disabled:opacity-50">
-                    ตรวจสอบและเช็กอิน
+                    {scanMode === 'vehicle' ? 'ตรวจสอบทะเบียนรถ' : 'ตรวจสอบและเช็กอิน'}
                   </button>
                 </form>
               </div>
@@ -346,7 +415,7 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
                 <h2 className="font-bold text-[#D8A934]">ผลการตรวจสอบ</h2>
                 {!scanResult && !error && !notice && (
                   <div className="rounded-xl border border-dashed border-[#30391E] p-8 text-center text-sm text-[#65705A]">
-                    สแกน QR หรือกรอกรหัสบัตรเพื่อเริ่มตรวจสอบ
+                    {scanMode === 'vehicle' ? 'สแกน QR ป้ายรถเพื่อดูทะเบียนและข้อมูลผู้รับผิดชอบ' : 'สแกน QR หรือกรอกรหัสบัตรเพื่อเริ่มตรวจสอบ'}
                   </div>
                 )}
                 {notice && <p role="status" className="rounded-xl border border-emerald-700/60 bg-emerald-950/20 p-3 text-xs text-emerald-200">{notice}</p>}
@@ -362,8 +431,26 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
                     <p className="text-sm leading-relaxed">{resultView?.body || 'ระบบคืนสถานะที่ไม่รู้จัก กรุณาตรวจสอบกับผู้ดูแล'}</p>
                     {scanResult.ticket_code && (
                       <div className="rounded-lg bg-black/20 p-3">
-                        <p className="text-[10px] uppercase tracking-wider opacity-70">รหัสบัตร</p>
-                        <p className="font-mono text-sm font-bold mt-1">{scanResult.ticket_code}</p>
+                        <p className="text-[10px] uppercase tracking-wider opacity-70">{scanMode === 'vehicle' ? 'รหัสป้ายรถ' : 'รหัสบัตร'}</p>
+                        <p className="font-mono text-sm font-bold mt-1">{scanMode === 'vehicle' ? scanResult.registration_code : scanResult.ticket_code}</p>
+                      </div>
+                    )}
+                    {scanMode === 'vehicle' && scanResult.vehicle_plate && (
+                      <div className="rounded-xl border border-[#D8A934]/50 bg-[#10140F]/60 p-4 space-y-3">
+                        <div className="text-center rounded-lg border border-[#D8A934]/50 p-3">
+                          <p className="text-[10px] uppercase tracking-widest opacity-70">ทะเบียนรถ</p>
+                          <p className="text-2xl font-black mt-1">{scanResult.vehicle_plate}</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div><p className="opacity-70">ยศ / ตำแหน่ง</p><p className="font-bold mt-1">{scanResult.owner_rank || '—'}</p></div>
+                          <div><p className="opacity-70">ผู้รับผิดชอบรถ</p><p className="font-bold mt-1">{scanResult.owner_name || '—'}</p></div>
+                          <div><p className="opacity-70">หน่วยงาน</p><p className="font-bold mt-1">{scanResult.organization || '—'}</p></div>
+                          <div><p className="opacity-70">สังกัด</p><p className="font-bold mt-1">{scanResult.affiliation || '—'}</p></div>
+                          <div><p className="opacity-70">โทรศัพท์</p><p className="font-bold mt-1">{scanResult.owner_phone || '—'}</p></div>
+                          <div><p className="opacity-70">อีเมล</p><p className="font-bold mt-1 break-all">{scanResult.owner_email || '—'}</p></div>
+                          <div><p className="opacity-70">โซนจอด</p><p className="font-bold mt-1">{scanResult.parking_zone || 'ยังไม่จัดสรร'}</p></div>
+                          <div><p className="opacity-70">ช่องจอด</p><p className="font-bold mt-1">{scanResult.parking_slot || 'ให้เจ้าหน้าที่แนะนำ'}</p></div>
+                        </div>
                       </div>
                     )}
                     {scanResult.idempotent_replay && <p className="text-[11px]">คำขอนี้ได้รับการประมวลผลแล้ว</p>}
@@ -374,7 +461,7 @@ export const SecureCheckInScanner: React.FC<SecureCheckInScannerProps> = ({ init
                 )}
                 <div className="rounded-xl border border-amber-700/40 bg-amber-950/15 p-4 text-xs text-amber-100/90 leading-relaxed">
                   <p className="font-bold mb-1">หมายเหตุการเช็กอิน</p>
-                  ระบบนี้เช็กอินตาม QR ของบัตรทั้งใบ: บัตรปกติ 1 ใบต่อ 1 คน และ VIP 1 QR ต่อ 1 โต๊ะ ระบบปัจจุบันยังไม่แยกเช็กอินทีละที่นั่ง VIP
+                  โหมดตั๋วใช้ QR เข้างานเพื่อตรวจสิทธิ์ บัตรปกติ 1 QR ต่อ 1 คน และ VIP 1 QR ต่อ 1 โต๊ะ ส่วนโหมดป้ายรถใช้ QR แยกต่างหากเพื่อดูทะเบียน เจ้าของรถ หน่วยงาน สังกัด และข้อมูลการจัดสรรที่จอด
                 </div>
               </div>
             </div>
