@@ -1,11 +1,11 @@
 -- Royal Hills Fest 2026: free registration and ticket issuance.
--- Existing orders keep their original amounts/statuses. Only future catalogue prices are set to zero.
+-- Existing orders keep their original amounts/statuses. New registrations are free and both official ticket types are enabled.
 -- Keep this migration on the review branch until the free-registration flow is tested end to end.
 
 update public.ticket_types
-   set price_thb = 0
- where code in ('tt-normal', 'tt-vip')
-   and price_thb <> 0;
+   set price_thb = 0,
+       is_active = true
+ where code in ('tt-normal', 'tt-vip');
 
 create or replace function ticketing_private.register_free_order(
   p_order_number text,
