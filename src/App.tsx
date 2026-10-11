@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActiveView, CartItem, Order, IssuedTicket } from './types';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -13,7 +13,7 @@ import { TicketPreviewSection } from './components/TicketPreviewSection';
 import { CheckoutModal } from './components/CheckoutModal';
 import { MyTicketsView } from './components/MyTicketsView';
 import { SecureCheckInScanner } from './components/SecureCheckInScanner';
-import { PaymentReviewDashboard } from './components/PaymentReviewDashboard';
+import { VehicleParkingDashboard } from './components/VehicleParkingDashboard';
 import { ticketingApiService } from './services/ticketingApiService';
 import { ArrowRight, Ticket, CheckCircle2 } from 'lucide-react';
 import { AutoReveal, ScrollRail, Atmosphere, MotionDirector } from './components/fx';
@@ -25,71 +25,6 @@ export default function App() {
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [checkInTargetCode, setCheckInTargetCode] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string | null>(null);
-
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('payment_return') !== '1') return;
-
-    const orderNumber = url.searchParams.get('order') || '';
-    const credential = ticketingApiService.getSavedCredentials()
-      .find((item) => item.orderNumber === orderNumber);
-    window.history.replaceState({}, '', url.pathname);
-    setActiveView('my-tickets');
-
-    if (!credential) {
-      setNotification('กลับจากหน้าธนาคารแล้ว แต่ไม่พบรหัสติดตามในอุปกรณ์นี้ กรุณาใช้เลขคำสั่งซื้อและรหัสติดตามเพื่อค้นหาบัตร');
-      return;
-    }
-
-    let cancelled = false;
-    let completed = false;
-    let attempts = 0;
-    let busy = false;
-    let interval: number | undefined;
-
-    const refreshReturnedPayment = async () => {
-      if (cancelled || completed || busy) return;
-      busy = true;
-      attempts += 1;
-      try {
-        const result = await ticketingApiService.getOrder(credential.orderNumber, credential.lookupToken);
-        if (cancelled) return;
-        if (result.order.paymentStatus === 'PAID' && result.order.tickets.length > 0) {
-          completed = true;
-          setCurrentOrder(result.order);
-          setActiveView('my-tickets');
-          setNotification('ชำระเงินสำเร็จ! ระบบออกตั๋วดิจิทัลให้แล้ว');
-          if (interval !== undefined) window.clearInterval(interval);
-        } else if (result.order.paymentStatus === 'CANCELLED' || result.order.paymentStatus === 'FAILED') {
-          completed = true;
-          setCurrentOrder(null);
-          setNotification('รายการนี้ยังไม่ได้ออกตั๋ว กรุณาตรวจสอบสถานะคำสั่งซื้อหรือติดต่อผู้จัดงาน');
-          if (interval !== undefined) window.clearInterval(interval);
-        } else if (attempts === 1) {
-          setNotification('กลับจากหน้าธนาคารแล้ว กำลังตรวจสอบผลชำระเงินจริง...');
-        } else if (attempts >= 18) {
-          completed = true;
-          setNotification('ยังไม่ได้รับการยืนยันชำระเงิน โปรดกดตรวจสอบสถานะในหน้าบัตรของฉันอีกครั้ง');
-          if (interval !== undefined) window.clearInterval(interval);
-        }
-      } catch {
-        if (attempts >= 18) {
-          completed = true;
-          setNotification('ยังตรวจสอบผลชำระเงินไม่ได้ โปรดเปิดบัตรของฉันและลองตรวจสอบสถานะอีกครั้ง');
-          if (interval !== undefined) window.clearInterval(interval);
-        }
-      } finally {
-        busy = false;
-      }
-    };
-
-    void refreshReturnedPayment();
-    interval = window.setInterval(() => void refreshReturnedPayment(), 5000);
-    return () => {
-      cancelled = true;
-      if (interval !== undefined) window.clearInterval(interval);
-    };
-  }, []);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -108,23 +43,23 @@ export default function App() {
       const types = await ticketingApiService.getCatalog();
       const found = types.find((ticket) => ticket.id === typeId);
       if (!found || found.saleStatus !== 'ACTIVE' || found.remainingQuantity < 1) {
-        showNotification('บัตรประเภทนี้ยังไม่เปิดขายหรือไม่มีจำนวนคงเหลือ กรุณาลองใหม่อีกครั้ง');
+        showNotification('ประเภทนี้ยังไม่เปิดลงทะเบียนหรือไม่มีสิทธิ์คงเหลือ กรุณาลองใหม่อีกครั้ง');
         return;
       }
       setActiveCart([{ ticketType: found, quantity: 1 }]);
       setIsCheckoutOpen(true);
     } catch (error) {
-      showNotification(error instanceof Error ? error.message : 'ยังเชื่อมต่อระบบจำหน่ายบัตรไม่ได้');
+      showNotification(error instanceof Error ? error.message : 'ยังเชื่อมต่อระบบลงทะเบียนไม่ได้');
     }
   };
 
-  // User completes order and payment
+  // User completes free registration and receives digital tickets
   const handleOrderCompleted = (order: Order) => {
     setCurrentOrder(order);
     setIsCheckoutOpen(false);
     setActiveCart([]);
     setActiveView('my-tickets');
-    showNotification(`ชำระเงินสำเร็จ! ได้รับบัตรดิจิทัล ${order.tickets.length} ใบสำหรับคำสั่งซื้อ ${order.id}`);
+    showNotification(`ลงทะเบียนสำเร็จ! ได้รับบัตรดิจิทัล ${order.tickets.length} ใบ (เลขลงทะเบียน ${order.id})`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -187,17 +122,7 @@ export default function App() {
           /* VIEW 3: ON-SITE GATE CHECK-IN SCANNER */
           <SecureCheckInScanner initialCode={checkInTargetCode} />
         ) : activeView === 'admin' ? (
-          /* Payment administration is authenticated server-side; mock localStorage admin views are hidden. */
-          <div className="py-16 sm:py-24 bg-[#10140F] min-h-screen">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="mb-8">
-                <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#D8A934]">ROYAL HILLS FEST 2026</span>
-                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#FFF9ED] mt-2">ระบบตรวจสอบการชำระเงิน</h1>
-                <p className="text-xs sm:text-sm text-[#F3E7C8]/70 mt-2">ข้อมูลจริงจาก Supabase · ต้องเข้าสู่ระบบผู้ดูแลก่อนตรวจสอบสลิปหรือออกบัตร</p>
-              </div>
-              <PaymentReviewDashboard />
-            </div>
-          </div>
+          <VehicleParkingDashboard />
         ) : (
           /* VIEW 5: MAIN FESTIVAL HOMEPAGE */
           <div>
@@ -261,7 +186,7 @@ export default function App() {
                     className="cursor-pointer w-full sm:w-auto px-8 py-4 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider rounded shadow-xl shadow-[#D8A934]/25 transition-all duration-200 flex items-center justify-center gap-2"
                   >
                     <Ticket className="w-4 h-4" />
-                    ซื้อบัตรเข้าร่วมงาน
+                    ลงทะเบียนเข้าร่วมงานฟรี
                   </button>
                   <button
                     onClick={() => {
@@ -300,7 +225,7 @@ export default function App() {
                   className="cursor-pointer inline-flex items-center gap-3 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-8 py-4 rounded shadow-xl shadow-[#D8A934]/30 transition-all duration-200"
                 >
                   <Ticket className="w-4 h-4" />
-                  ซื้อบัตรเข้าร่วมงาน วันที่ 14 พฤศจิกายน 2569
+                  ลงทะเบียนเข้าร่วมงานฟรี วันที่ 14 พฤศจิกายน 2569
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -309,7 +234,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Checkout & Payment Modal */}
+      {/* Free registration and digital ticket modal */}
       {isCheckoutOpen && activeCart.length > 0 && (
         <CheckoutModal
           cart={activeCart}

@@ -2596,3 +2596,118 @@ html{scroll-behavior:smooth}
   }
 }
 
+/* Vehicle parking pass printing: select one document at a time so the event
+   ticket and vehicle sticker never print on the same sheet. */
+@media print {
+  #my-tickets.print-mode-ticket .printable-parking-pass {
+    display: none !important;
+  }
+
+  #my-tickets.print-mode-parking .rhf-ticket-page > .printable-ticket-card,
+  #my-tickets.print-mode-parking .rhf-ticket-page > .ticket-print-hide,
+  #my-tickets.print-mode-parking .rhf-ticket-page > .grid {
+    display: none !important;
+  }
+
+  #my-tickets.print-mode-parking .rhf-ticket-page > .printable-parking-pass {
+    display: block !important;
+    width: 100% !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    padding: 8mm !important;
+    color: #10140f !important;
+    background: #fffdf7 !important;
+    border: 2px solid #d8a934 !important;
+    border-radius: 4mm !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #my-tickets.print-mode-parking .printable-parking-pass * {
+    text-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #my-tickets.print-mode-parking .parking-qr-image {
+    width: 42mm !important;
+    height: 42mm !important;
+    object-fit: contain !important;
+  }
+}
+
+/* Registration metadata is part of the printable event ticket, not just the web view. */
+.rhf-e-ticket-registration {
+  padding: 14px 16px;
+  border: 1px solid rgba(216,169,52,.42);
+  border-radius: 12px;
+  background: rgba(2,8,5,.34);
+  min-width: 0;
+}
+.rhf-e-ticket-person-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(216,169,52,.38);
+  color: #efd27c;
+  font-size: 9px;
+  letter-spacing: .14em;
+  font-weight: 700;
+}
+.rhf-e-ticket-person-heading strong {
+  color: #fff9ed;
+  font-size: 9px;
+  letter-spacing: .05em;
+  text-align: right;
+}
+.rhf-e-ticket-person-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px 14px;
+}
+.rhf-e-ticket-person-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rhf-e-ticket-person-grid span {
+  color: #efd27c;
+  font-size: 9px;
+  line-height: 1.25;
+}
+.rhf-e-ticket-person-grid strong {
+  color: #fffdf7;
+  font-size: 11px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+.rhf-e-ticket-person-grid .rhf-e-ticket-vehicle-detail strong {
+  font-size: 13px;
+  letter-spacing: .04em;
+  color: #ffdf7e;
+}
+@media (max-width: 640px) {
+  .rhf-e-ticket-registration { padding: 10px; }
+  .rhf-e-ticket-person-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+  .rhf-e-ticket-person-grid strong { font-size: 10px; }
+}
+@media print {
+  .rhf-e-ticket-registration {
+    background: rgba(2,8,5,.34) !important;
+    border: 1px solid rgba(216,169,52,.65) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .rhf-e-ticket-person-heading,
+  .rhf-e-ticket-person-grid span { color: #efd27c !important; }
+  .rhf-e-ticket-person-heading strong,
+  .rhf-e-ticket-person-grid strong { color: #fffdf7 !important; }
+}

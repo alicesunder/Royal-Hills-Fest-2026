@@ -30,12 +30,40 @@ export interface CartItem {
   quantity: number; // number of normal tickets or number of VIP tables
 }
 
-export interface AttendeeInfo {
-  ticketNumber: number;
+export interface TicketRegistrationProfile {
+  rank?: string;
   attendeeName: string;
   attendeePhone: string;
   attendeeEmail: string;
+  organization: string;
+  affiliation: string;
+  vehiclePlate: string;
+}
+
+export interface AttendeeInfo extends TicketRegistrationProfile {
+  ticketNumber: number;
   notes?: string;
+}
+
+export interface VipTableRegistration extends TicketRegistrationProfile {
+  tableIndex: number;
+  attendeeNames: string[];
+}
+
+export interface VehicleParkingPass {
+  registrationCode: string;
+  qrToken: string;
+  vehiclePlate: string;
+  ownerRank?: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string;
+  organization: string;
+  affiliation: string;
+  parkingZone?: string | null;
+  parkingSlot?: string | null;
+  status: 'active' | 'cancelled';
+  arrivalVerifiedAt?: number;
 }
 
 // VIP Table Attendee: 1 to 6 attendees per VIP table
@@ -59,10 +87,15 @@ export interface IssuedTicket {
   ticketKind: TicketKind; // 'NORMAL' | 'VIP'
   seatsCount: number; // 1 for normal, 6 for VIP
   tableNumber?: string; // e.g. "VIP-001"
-  // For Normal ticket: 1 attendee
+  // Registration and vehicle-owner details
+  rank?: string;
   attendeeName: string;
   attendeePhone: string;
   attendeeEmail: string;
+  organization?: string;
+  affiliation?: string;
+  vehiclePlate?: string;
+  parkingPass?: VehicleParkingPass;
   // For VIP table: up to 6 attendees with individual check-in status
   vipAttendees?: VipAttendee[];
   qrToken: string; // unique code scanned at gate
@@ -90,11 +123,11 @@ export interface Order {
     subtotal: number;
   }[];
   totalQuantity: number;
-  totalAmount: number; // (normalQuantity * 555) + (vipTableQuantity * 5555)
+  totalAmount: number; // 0 for free event registration
   paymentMethod: 'QR_PROMPTPAY' | 'MOBILE_BANKING' | 'CREDIT_CARD' | 'BANK_TRANSFER';
   paymentStatus: PaymentStatus;
   createdAt: number;
-  expiresAt: number; // 15-minute countdown for payment
+  expiresAt: number; // registration reservation expiration
   paidAt?: number;
   transactionRef?: string;
   tickets: IssuedTicket[];

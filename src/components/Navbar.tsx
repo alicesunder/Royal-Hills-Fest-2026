@@ -104,13 +104,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         <nav className="hidden lg:flex items-center gap-3 xl:gap-5 mx-4 xl:mx-6 text-xs xl:text-sm font-medium tracking-wide text-[#F3E7C8]/85 whitespace-nowrap">
           {[
             { v: 'home' as ActiveView, label: 'หน้าหลัก' },
-            { v: 'tickets' as ActiveView, label: 'ซื้อบัตร', gold: true },
+            { v: 'tickets' as ActiveView, label: 'ลงทะเบียน', gold: true },
             { v: 'about' as ActiveView, label: 'เกี่ยวกับงาน' },
             { v: 'experience' as ActiveView, label: 'ประสบการณ์' },
             { v: 'schedule' as ActiveView, label: 'กำหนดการ' },
             { v: 'my-tickets' as ActiveView, label: 'บัตรของฉัน', icon: <Ticket className="w-3.5 h-3.5 text-[#D8A934]" /> },
             { v: 'check-in' as ActiveView, label: 'เช็กอินหน้างาน', icon: <ScanLine className="w-3.5 h-3.5 text-[#C96F3D]" />, compact: true },
-            { v: 'admin' as ActiveView, label: 'ระบบจัดการ', icon: <Shield className="w-3.5 h-3.5 text-[#65705A]" />, compact: true },
+            { v: 'admin' as ActiveView, label: 'จัดสรรที่จอดรถ', icon: <Shield className="w-3.5 h-3.5 text-[#65705A]" />, compact: true },
           ].map((item) => {
             const on = current === item.v;
             return (
@@ -136,8 +136,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="cursor-pointer bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs sm:text-sm px-3 sm:px-5 py-2.5 rounded transition-all duration-200 tracking-wider shadow-md shadow-[#D8A934]/20 hover:shadow-[#D8A934]/30 whitespace-nowrap active:scale-[0.98] flex items-center gap-2"
           >
             <Ticket className="w-4 h-4 hidden min-[400px]:block" />
-            <span className="hidden sm:inline">ซื้อบัตรเข้าร่วมงาน</span>
-            <span className="sm:hidden">ซื้อบัตร</span>
+            <span className="hidden sm:inline">ลงทะเบียนเข้าร่วมงานฟรี</span>
+            <span className="sm:hidden">ลงทะเบียน</span>
           </button>
 
           {/* Mobile menu toggle */}
@@ -173,7 +173,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="text-left py-2 hover:text-[#D8A934] text-[#D8A934] font-semibold transition-colors flex items-center gap-2"
             >
               <Ticket className="w-4 h-4" />
-              ซื้อบัตรเข้าร่วมงาน (Ticket Store)
+              ลงทะเบียนเข้าร่วมงานฟรี
             </button>
             <button
               onClick={() => handleNavClick('about')}
@@ -214,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="mobile-nav-staff-link text-left py-2 hover:text-[#D8A934] transition-colors flex items-center gap-2"
             >
               <Shield className="w-4 h-4 text-[#65705A]" />
-                ระบบจัดการหน้างาน / แดชบอร์ดบัตร
+                จัดสรรที่จอดรถ / ทะเบียนรถ
               </button>
             </div>
           </div>
@@ -227,7 +227,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="w-full bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-center py-3 rounded text-sm tracking-wider flex items-center justify-center gap-2"
             >
               <Ticket className="w-4 h-4" />
-              ซื้อบัตรเข้าร่วมงาน
+              ลงทะเบียนเข้าร่วมงานฟรี
             </button>
           </div>
         </nav>

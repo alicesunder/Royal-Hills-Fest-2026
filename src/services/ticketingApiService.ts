@@ -1,4 +1,4 @@
-import { AttendeeInfo, CartItem, IssuedTicket, Order, TicketType, VipAttendee } from '../types';
+import { AttendeeInfo, CartItem, IssuedTicket, Order, TicketType, VipAttendee, VipTableRegistration, VehicleParkingPass } from '../types';
 import { OFFICIAL_TICKET_TYPES } from './ticketStoreService';
 
 const CREDENTIALS_STORAGE_KEY = 'rhf26_secure_order_lookup_v1';
@@ -15,7 +15,7 @@ export interface TicketingOrderInput {
   buyerEmail: string;
   cart: CartItem[];
   normalAttendees: AttendeeInfo[];
-  vipTables: { tableIndex: number; attendeeNames: string[] }[];
+  vipTables: VipTableRegistration[];
   idempotencyKey: string;
   lookupToken: string;
 }
@@ -28,34 +28,8 @@ export interface TicketingOrderResult {
 
 type JsonRecord = Record<string, unknown>;
 
-export interface PaymentCapabilities {
-  promptpay: boolean;
-  mobileBanking: boolean;
-  mobileBankingBanks: { type: string; name: string }[];
-  ready: boolean;
-}
-
-export interface ProviderPayment {
-  orderNumber: string;
-  chargeId: string;
-  amountSubunits: number;
-  currency: string;
-  chargeStatus: string;
-  paymentMethod: 'QR_PROMPTPAY' | 'MOBILE_BANKING';
-  bankType: string;
-  bankName: string | null;
-  qrImageUrl: string | null;
-  authorizeUrl: string | null;
-  expiresAt: string | null;
-  alreadyPaid?: boolean;
-}
-
-
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
 const SUPABASE_PUBLISHABLE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '');
-// The static QR preserves the original PromptPay payload decoded from the user's supplied SCB image.
-export const PROMPTPAY_QR_URL = String(import.meta.env.VITE_PROMPTPAY_QR_URL || '/promptpay-qr.svg');
-
 function assertConfigured() {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     throw new Error('ระบบสั่งซื้อยังไม่ได้ตั้งค่า Supabase URL และ Publishable Key');
@@ -116,18 +90,43 @@ function mapCustomerOrder(payload: JsonRecord): TicketingOrderResult {
           };
         })
       : undefined;
+    const parkingRaw = ticket.parking_pass && typeof ticket.parking_pass === 'object'
+      ? ticket.parking_pass as JsonRecord
+      : null;
+    const parkingPass: VehicleParkingPass | undefined = parkingRaw && typeof parkingRaw.qr_token === 'string'
+      ? {
+          registrationCode: String(parkingRaw.registration_code || ''),
+          qrToken: String(parkingRaw.qr_token),
+          vehiclePlate: String(parkingRaw.vehicle_plate || ''),
+          ownerRank: String(parkingRaw.owner_rank || ''),
+          ownerName: String(parkingRaw.owner_name || ''),
+          ownerPhone: String(parkingRaw.owner_phone || ''),
+          ownerEmail: String(parkingRaw.owner_email || ''),
+          organization: String(parkingRaw.organization || ''),
+          affiliation: String(parkingRaw.affiliation || ''),
+          parkingZone: typeof parkingRaw.parking_zone === 'string' ? parkingRaw.parking_zone : null,
+          parkingSlot: typeof parkingRaw.parking_slot === 'string' ? parkingRaw.parking_slot : null,
+          status: parkingRaw.status === 'cancelled' ? 'cancelled' : 'active',
+          arrivalVerifiedAt: parkingRaw.arrival_verified_at ? new Date(String(parkingRaw.arrival_verified_at)).getTime() : undefined,
+        }
+      : undefined;
     return {
       id: String(ticket.ticket_code || ticket.id || ''),
       orderId: String(rawOrder.order_number || ''),
       ticketTypeId: code,
       ticketTypeName: String(type?.name || (isVip ? 'VIP' : 'บัตรปกติ')),
-      ticketPrice: Number(type?.unit_price_thb || type?.price_thb || 0),
+      ticketPrice: 0,
       ticketKind: isVip ? 'VIP' : 'NORMAL',
       seatsCount: isVip ? 6 : 1,
       tableNumber: isVip ? String(ticket.ticket_code || '') : undefined,
-      attendeeName: String(ticket.attendee_name || ''),
-      attendeePhone: String(rawOrder.customer_phone || ''),
-      attendeeEmail: String(rawOrder.customer_email || ''),
+      rank: parkingPass?.ownerRank || '',
+      attendeeName: parkingPass?.ownerName || String(ticket.attendee_name || ''),
+      attendeePhone: parkingPass?.ownerPhone || String(rawOrder.customer_phone || ''),
+      attendeeEmail: parkingPass?.ownerEmail || String(rawOrder.customer_email || ''),
+      organization: parkingPass?.organization || '',
+      affiliation: parkingPass?.affiliation || '',
+      vehiclePlate: parkingPass?.vehiclePlate || '',
+      parkingPass,
       vipAttendees,
       qrToken: String(ticket.qr_token || ''),
       status,
@@ -202,7 +201,7 @@ export const ticketingApiService = {
     return (payload.data || {}) as JsonRecord;
   },
 
-  async getPaymentReviewQueue(accessToken: string): Promise<JsonRecord[]> {
+  async checkVehiclePass(accessToken: string, qrToken: string, scannerDeviceId = 'parking-gate-1'): Promise<JsonRecord> {
     assertConfigured();
     const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
       method: 'POST',
@@ -211,24 +210,24 @@ export const ticketingApiService = {
         Authorization: 'Bearer ' + accessToken,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action: 'admin-list' }),
+      body: JSON.stringify({
+        action: 'check-vehicle',
+        qrToken,
+        requestId: crypto.randomUUID(),
+        scannerDeviceId,
+        scanLocation: 'ROYAL HILLS VEHICLE GATE',
+      }),
     });
     const payload = await response.json().catch(() => ({})) as JsonRecord;
     if (!response.ok) {
-      throw new Error(typeof payload.error === 'string' ? payload.error : 'โหลดรายการรอตรวจสอบไม่สำเร็จ');
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'ตรวจสอบ QR ป้ายรถไม่สำเร็จ');
     }
-    const data = payload.data as JsonRecord | undefined;
-    return Array.isArray(data?.orders) ? data.orders as JsonRecord[] : [];
+    return (payload.data || {}) as JsonRecord;
   },
 
-  async getPaymentReviewHistory(accessToken: string, limit = 100): Promise<{
-    events: JsonRecord[];
-    stats: {
-      approved_orders: number;
-      approved_tickets: number;
-      approved_amount_thb: number;
-      review_actions: number;
-    };
+  async getVehiclePasses(accessToken: string, limit = 200): Promise<{
+    vehicles: JsonRecord[];
+    stats: { total: number; assigned: number; arrived: number };
   }> {
     assertConfigured();
     const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
@@ -238,26 +237,30 @@ export const ticketingApiService = {
         Authorization: 'Bearer ' + accessToken,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action: 'admin-history', limit }),
+      body: JSON.stringify({ action: 'admin-vehicles', limit }),
     });
     const payload = await response.json().catch(() => ({})) as JsonRecord;
     if (!response.ok) {
-      throw new Error(typeof payload.error === 'string' ? payload.error : 'โหลดประวัติการอนุมัติไม่สำเร็จ');
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'โหลดทะเบียนรถไม่สำเร็จ');
     }
     const data = (payload.data && typeof payload.data === 'object' ? payload.data : {}) as JsonRecord;
     const rawStats = (data.stats && typeof data.stats === 'object' ? data.stats : {}) as JsonRecord;
     return {
-      events: Array.isArray(data.events) ? data.events as JsonRecord[] : [],
+      vehicles: Array.isArray(data.vehicles) ? data.vehicles as JsonRecord[] : [],
       stats: {
-        approved_orders: Number(rawStats.approved_orders || 0),
-        approved_tickets: Number(rawStats.approved_tickets || 0),
-        approved_amount_thb: Number(rawStats.approved_amount_thb || 0),
-        review_actions: Number(rawStats.review_actions || 0),
+        total: Number(rawStats.total || 0),
+        assigned: Number(rawStats.assigned || 0),
+        arrived: Number(rawStats.arrived || 0),
       },
     };
   },
 
-  async reviewPaymentOrder(accessToken: string, orderId: string, action: 'approve' | 'reject', note = ''): Promise<JsonRecord> {
+  async assignVehicleParking(
+    accessToken: string,
+    registrationCode: string,
+    parkingZone: string,
+    parkingSlot: string,
+  ): Promise<JsonRecord> {
     assertConfigured();
     const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
       method: 'POST',
@@ -266,11 +269,16 @@ export const ticketingApiService = {
         Authorization: 'Bearer ' + accessToken,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action: 'admin-review', orderId, reviewAction: action, note }),
+      body: JSON.stringify({
+        action: 'assign-parking',
+        registrationCode,
+        parkingZone,
+        parkingSlot,
+      }),
     });
     const payload = await response.json().catch(() => ({})) as JsonRecord;
     if (!response.ok) {
-      throw new Error(typeof payload.error === 'string' ? payload.error : 'ดำเนินการตรวจสอบไม่สำเร็จ');
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'บันทึกการจัดสรรที่จอดรถไม่สำเร็จ');
     }
     return (payload.data || {}) as JsonRecord;
   },
@@ -307,62 +315,6 @@ export const ticketingApiService = {
     } catch {
       return [];
     }
-  },
-
-  async getPaymentCapabilities(): Promise<PaymentCapabilities> {
-    const data = await invoke('payment-capabilities', {}) as JsonRecord;
-    return {
-      promptpay: data.promptpay === true,
-      mobileBanking: data.mobileBanking === true,
-      mobileBankingBanks: Array.isArray(data.mobileBankingBanks)
-        ? data.mobileBankingBanks.filter((item): item is { type: string; name: string } =>
-            Boolean(item && typeof item === 'object' &&
-              typeof (item as JsonRecord).type === 'string' &&
-              typeof (item as JsonRecord).name === 'string'))
-        : [],
-      ready: data.ready === true,
-    };
-  },
-
-  async createProviderPayment(input: {
-    orderNumber: string;
-    lookupToken: string;
-    paymentMethod: 'QR_PROMPTPAY' | 'MOBILE_BANKING';
-    bankType?: string;
-  }): Promise<ProviderPayment> {
-    const data = await invoke('create-provider-payment', input as unknown as JsonRecord) as JsonRecord;
-    return {
-      orderNumber: String(data.orderNumber || input.orderNumber),
-      chargeId: String(data.chargeId || ''),
-      amountSubunits: Number(data.amountSubunits || 0),
-      currency: String(data.currency || 'THB'),
-      chargeStatus: String(data.chargeStatus || 'pending'),
-      paymentMethod: data.paymentMethod === 'MOBILE_BANKING' ? 'MOBILE_BANKING' : 'QR_PROMPTPAY',
-      bankType: String(data.bankType || ''),
-      bankName: typeof data.bankName === 'string' ? data.bankName : null,
-      qrImageUrl: typeof data.qrImageUrl === 'string' ? data.qrImageUrl : null,
-      authorizeUrl: typeof data.authorizeUrl === 'string' ? data.authorizeUrl : null,
-      expiresAt: typeof data.expiresAt === 'string' ? data.expiresAt : null,
-      alreadyPaid: data.alreadyPaid === true,
-    };
-  },
-
-  async getProviderPayment(orderNumber: string, lookupToken: string): Promise<ProviderPayment> {
-    const data = await invoke('get-provider-payment', { orderNumber, lookupToken }) as JsonRecord;
-    return {
-      orderNumber: String(data.orderNumber || orderNumber),
-      chargeId: String(data.chargeId || ''),
-      amountSubunits: Number(data.amountSubunits || 0),
-      currency: String(data.currency || 'THB'),
-      chargeStatus: String(data.chargeStatus || 'pending'),
-      paymentMethod: data.paymentMethod === 'MOBILE_BANKING' ? 'MOBILE_BANKING' : 'QR_PROMPTPAY',
-      bankType: String(data.bankType || ''),
-      bankName: typeof data.bankName === 'string' ? data.bankName : null,
-      qrImageUrl: typeof data.qrImageUrl === 'string' ? data.qrImageUrl : null,
-      authorizeUrl: typeof data.authorizeUrl === 'string' ? data.authorizeUrl : null,
-      expiresAt: typeof data.expiresAt === 'string' ? data.expiresAt : null,
-      alreadyPaid: data.alreadyPaid === true,
-    };
   },
 
   async getCatalog(): Promise<TicketType[]> {
@@ -416,9 +368,29 @@ export const ticketingApiService = {
   async createOrder(input: TicketingOrderInput): Promise<TicketingOrderResult> {
     const items = input.cart.map((cartItem) => {
       const isVip = cartItem.ticketType.id === 'tt-vip';
+      const cleanProfile = (profile: {
+        rank?: string;
+        attendeeName: string;
+        attendeePhone: string;
+        attendeeEmail: string;
+        organization: string;
+        affiliation: string;
+        vehiclePlate: string;
+      }) => ({
+        rank: String(profile.rank || '').trim(),
+        attendeeName: profile.attendeeName.trim(),
+        attendeePhone: profile.attendeePhone.trim(),
+        attendeeEmail: profile.attendeeEmail.trim(),
+        organization: profile.organization.trim(),
+        affiliation: profile.affiliation.trim(),
+        vehiclePlate: profile.vehiclePlate.trim(),
+      });
       const attendeeData = isVip
-        ? input.vipTables.map((table) => ({ attendeeNames: table.attendeeNames.slice(0, 6) }))
-        : input.normalAttendees.map((attendee) => ({ attendeeName: attendee.attendeeName.trim() }));
+        ? input.vipTables.map((table) => ({
+            ...cleanProfile(table),
+            attendeeNames: table.attendeeNames.slice(0, 6),
+          }))
+        : input.normalAttendees.map((attendee) => cleanProfile(attendee));
       return {
         code: cartItem.ticketType.id,
         quantity: cartItem.quantity,
@@ -458,32 +430,6 @@ export const ticketingApiService = {
       ...mapped,
       credentials: { orderNumber, lookupToken, createdAt: Date.now() },
     };
-  },
-
-  async submitProof(input: {
-    orderNumber: string;
-    lookupToken: string;
-    paymentReference: string;
-    proof: File;
-  }): Promise<JsonRecord> {
-    assertConfigured();
-    const form = new FormData();
-    form.set('action', 'submit-proof');
-    form.set('orderNumber', input.orderNumber);
-    form.set('lookupToken', input.lookupToken);
-    form.set('paymentReference', input.paymentReference.trim());
-    form.set('proof', input.proof);
-
-    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
-      method: 'POST',
-      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
-      body: form,
-    });
-    const payload = await response.json().catch(() => ({})) as JsonRecord;
-    if (!response.ok) {
-      throw new Error(typeof payload.error === 'string' ? payload.error : 'ส่งหลักฐานไม่สำเร็จ กรุณาลองอีกครั้ง');
-    }
-    return (payload.data || {}) as JsonRecord;
   },
 
   async getSavedOrders(): Promise<TicketingOrderResult[]> {

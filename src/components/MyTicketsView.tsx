@@ -38,6 +38,8 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   const [selectedTicket, setSelectedTicket] = useState<IssuedTicket | null>(null);
   const [selectedOrderRecord, setSelectedOrderRecord] = useState<Order | null>(null);
   const [selectedTicketQr, setSelectedTicketQr] = useState<string>('');
+  const [selectedParkingQr, setSelectedParkingQr] = useState<string>('');
+  const [printMode, setPrintMode] = useState<'ticket' | 'parking' | null>(null);
   const [lookupQuery, setLookupQuery] = useState('');
   const [lookupTokenInput, setLookupTokenInput] = useState('');
   const [lookupError, setLookupError] = useState('');
@@ -85,7 +87,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
         setSelectedOrderRecord(null);
         setSelectedTicket(null);
         setSelectedTicketQr('');
-        setOrdersError(error instanceof Error ? error.message : 'โหลดคำสั่งซื้อที่บันทึกไว้ไม่สำเร็จ');
+        setOrdersError(error instanceof Error ? error.message : 'โหลดรายการลงทะเบียนที่บันทึกไว้ไม่สำเร็จ');
       })
       .finally(() => {
         if (active) setLoadingOrders(false);
@@ -99,7 +101,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
     const credential = ticketingApiService.getSavedCredentials()
       .find((item) => item.orderNumber === selectedOrderRecord.id);
     if (!credential) {
-      setOrdersError('ไม่พบรหัสติดตามคำสั่งซื้อในอุปกรณ์นี้ กรุณาใช้ข้อมูลคำสั่งซื้อเดิม');
+      setOrdersError('ไม่พบรหัสติดตามรายการลงทะเบียนในอุปกรณ์นี้ กรุณาใช้ข้อมูลรายการลงทะเบียนเดิม');
       return;
     }
 
@@ -134,13 +136,29 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
     }
   }, [selectedTicket]);
 
+  useEffect(() => {
+    const token = selectedTicket?.parkingPass?.qrToken;
+    if (!token) {
+      setSelectedParkingQr('');
+      return;
+    }
+    QRCode.toDataURL(token, {
+      width: 420,
+      margin: 2,
+      color: { dark: '#111111', light: '#ffffff' },
+      errorCorrectionLevel: 'H',
+    })
+      .then((url) => setSelectedParkingQr(url))
+      .catch((error) => console.error('Failed to generate parking QR', error));
+  }, [selectedTicket]);
+
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLookupError('');
     const query = lookupQuery.trim();
     const normalized = query.toLowerCase();
     if (!query) {
-      setLookupError('กรุณากรอกเลขคำสั่งซื้อ อีเมล หรือรหัสบัตร/โต๊ะ');
+      setLookupError('กรุณากรอกเลขลงทะเบียน อีเมล หรือรหัสบัตร/โต๊ะ');
       return;
     }
 
@@ -164,7 +182,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
       } catch (error) {
         setLookupError(error instanceof Error
           ? error.message
-          : 'ค้นหาคำสั่งซื้อไม่สำเร็จ กรุณาตรวจเลขคำสั่งซื้อและรหัสติดตาม');
+          : 'ค้นหารายการลงทะเบียนไม่สำเร็จ กรุณาตรวจเลขลงทะเบียนและรหัสติดตาม');
         return;
       } finally {
         setLoadingOrders(false);
@@ -203,11 +221,11 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
     }
 
     if (/^rhf26-/i.test(query) && !accessKey) {
-      setLookupError('เพื่อความปลอดภัย ให้กรอกเลขคำสั่งซื้อพร้อมรหัสติดตามส่วนตัวที่ได้รับตอนสั่งซื้อ');
+      setLookupError('เพื่อความปลอดภัย ให้กรอกเลขลงทะเบียนพร้อมรหัสติดตามส่วนตัวที่ได้รับตอนสั่งซื้อ');
       return;
     }
 
-    setLookupError('ไม่พบคำสั่งซื้อในอุปกรณ์นี้ กรุณาตรวจสอบข้อมูล หรือกรอกเลขคำสั่งซื้อพร้อมรหัสติดตาม');
+    setLookupError('ไม่พบรายการลงทะเบียนในอุปกรณ์นี้ กรุณาตรวจสอบข้อมูล หรือกรอกเลขลงทะเบียนพร้อมรหัสติดตาม');
   };
 
   const handleCopyTicketCode = () => {
@@ -228,7 +246,30 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   };
 
   const handlePrintTicket = () => {
-    window.print();
+    setPrintMode('ticket');
+    window.setTimeout(() => {
+      window.print();
+      setPrintMode(null);
+    }, 120);
+  };
+
+  const handlePrintParkingPass = () => {
+    if (!selectedTicket?.parkingPass) return;
+    setPrintMode('parking');
+    window.setTimeout(() => {
+      window.print();
+      setPrintMode(null);
+    }, 120);
+  };
+
+  const handleDownloadParkingQr = () => {
+    if (!selectedParkingQr || !selectedTicket?.parkingPass) return;
+    const a = document.createElement('a');
+    a.href = selectedParkingQr;
+    a.download = `RoyalHillsFest2026_${selectedTicket.parkingPass.registrationCode}_VehicleQR.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   // Find parent order of the selected ticket
@@ -239,7 +280,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
   const allTicketsList = orders.flatMap((o) => o.tickets);
 
   return (
-    <section id="my-tickets" className="py-20 sm:py-28 bg-[#10140F] relative min-h-screen">
+    <section id="my-tickets" className={`py-20 sm:py-28 bg-[#10140F] relative min-h-screen ${printMode ? 'print-mode-' + printMode : ''}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-12 no-print">
@@ -259,8 +300,8 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
         <div className="max-w-xl mx-auto mb-12 bg-[#182719] p-4 sm:p-5 rounded-2xl border border-[#30391E] shadow-xl no-print">
           <div className="mb-3 rounded-xl border border-[#30391E] bg-[#182719] px-3 py-2.5">
             <p className="text-[11px] leading-relaxed text-[#F3E7C8]/80">
-              หากเคยซื้อบัตรจากเบราว์เซอร์นี้ ระบบจะโหลดคำสั่งซื้อที่บันทึกไว้ให้อัตโนมัติ
-              หากเปลี่ยนอุปกรณ์ ให้กรอกเลขคำสั่งซื้อและรหัสติดตามส่วนตัวด้านล่าง
+              หากเคยลงทะเบียนจากเบราว์เซอร์นี้ ระบบจะโหลดข้อมูลที่บันทึกไว้ให้อัตโนมัติ
+              หากเปลี่ยนอุปกรณ์ ให้กรอกเลขลงทะเบียนและรหัสติดตามส่วนตัวด้านล่าง
             </p>
           </div>
           <form onSubmit={handleLookup} className="space-y-2.5">
@@ -271,7 +312,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                   type="text"
                   value={lookupQuery}
                   onChange={(e) => setLookupQuery(e.target.value)}
-                  placeholder="เลขคำสั่งซื้อ (เช่น RHF26-...)"
+                  placeholder="เลขลงทะเบียน (เช่น RHF26-...)"
                   className="w-full bg-[#10140F] border border-[#30391E] rounded-xl pl-10 pr-4 py-2.5 text-xs text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
                 />
               </div>
@@ -293,7 +334,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                 autoComplete="off"
                 value={lookupTokenInput}
                 onChange={(e) => setLookupTokenInput(e.target.value)}
-                placeholder="วางรหัสติดตามจากหน้าชำระเงิน"
+                placeholder="วางรหัสติดตามจากหน้าลงทะเบียน"
                 className="w-full bg-[#10140F] border border-[#30391E] rounded-xl px-4 py-2.5 text-xs text-[#FFF9ED] focus:outline-none focus:border-[#D8A934]"
               />
             </div>
@@ -325,8 +366,45 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                     <strong>{selectedTicket.ticketKind === 'VIP' ? 'VIP TABLE PASS' : 'GENERAL ADMISSION'}</strong>
                     <span>{selectedTicket.ticketKind === 'VIP' ? '1 Table · Up to 6 Guests' : '1 Person · Single Entry'}</span>
                     <span className="rhf-e-ticket-paid-label">
-                      ฿{selectedTicket.ticketPrice.toLocaleString()} THB
+                      FREE REGISTRATION
                     </span>
+                  </div>
+                </div>
+
+                <div className="rhf-e-ticket-registration" aria-label="ข้อมูลผู้ลงทะเบียน">
+                  <div className="rhf-e-ticket-person-heading">
+                    <span>REGISTERED ATTENDEE</span>
+                    <strong>{selectedTicket.ticketKind === 'VIP' ? 'VIP TABLE OWNER' : 'GENERAL ADMISSION'}</strong>
+                  </div>
+                  <div className="rhf-e-ticket-person-grid">
+                    <div>
+                      <span>ยศ / ตำแหน่ง</span>
+                      <strong>{selectedTicket.parkingPass?.ownerRank || selectedTicket.rank || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>ชื่อ-นามสกุล</span>
+                      <strong>{selectedTicket.parkingPass?.ownerName || selectedTicket.attendeeName || parentOrder?.buyerName || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>หน่วยงาน</span>
+                      <strong>{selectedTicket.parkingPass?.organization || selectedTicket.organization || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>สังกัด</span>
+                      <strong>{selectedTicket.parkingPass?.affiliation || selectedTicket.affiliation || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>โทรศัพท์</span>
+                      <strong>{selectedTicket.parkingPass?.ownerPhone || selectedTicket.attendeePhone || parentOrder?.buyerPhone || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>อีเมล</span>
+                      <strong>{selectedTicket.parkingPass?.ownerEmail || selectedTicket.attendeeEmail || parentOrder?.buyerEmail || '—'}</strong>
+                    </div>
+                    <div className="rhf-e-ticket-vehicle-detail">
+                      <span>ทะเบียนรถ</span>
+                      <strong>{selectedTicket.parkingPass?.vehiclePlate || selectedTicket.vehiclePlate || '—'}</strong>
+                    </div>
                   </div>
                 </div>
 
@@ -370,6 +448,64 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               </aside>
             </article>
 
+            {selectedTicket.parkingPass && (
+              <article className="printable-parking-pass rounded-2xl border-2 border-[#D8A934] bg-[#FFFDF7] text-[#10140F] p-5 sm:p-7 shadow-xl" aria-label={"ป้ายทะเบียนรถ " + selectedTicket.parkingPass.vehiclePlate}>
+                <div className="flex flex-col sm:flex-row items-stretch gap-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-3 border-b-2 border-[#D8A934] pb-3">
+                      <div>
+                        <p className="text-[10px] sm:text-xs font-black tracking-[0.2em] text-[#6b541a]">ROYAL HILLS FEST 2026</p>
+                        <h2 className="mt-1 text-xl sm:text-3xl font-black">ป้ายอนุญาตรถเข้าพื้นที่งาน</h2>
+                        <p className="text-xs sm:text-sm mt-1">VEHICLE & PARKING PASS</p>
+                      </div>
+                      <span className="shrink-0 rounded-lg border-2 border-[#D8A934] px-3 py-2 text-xs sm:text-sm font-black">
+                        {selectedTicket.ticketKind === 'VIP' ? 'VIP' : 'GENERAL'}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border-2 border-[#10140F] px-4 py-3 text-center">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-[#6b541a]">ทะเบียนรถ / VEHICLE REGISTRATION</p>
+                      <p className="mt-1 text-3xl sm:text-5xl font-black tracking-wide break-words">{selectedTicket.parkingPass.vehiclePlate}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3 mt-4 text-sm">
+                      <div><p className="text-[10px] text-[#6b541a]">ยศ / ตำแหน่ง</p><p className="font-bold">{selectedTicket.parkingPass.ownerRank || '—'}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">ชื่อผู้รับผิดชอบรถ</p><p className="font-bold">{selectedTicket.parkingPass.ownerName}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">หน่วยงาน</p><p className="font-bold">{selectedTicket.parkingPass.organization}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">สังกัด</p><p className="font-bold">{selectedTicket.parkingPass.affiliation}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">เบอร์โทรศัพท์</p><p className="font-bold">{selectedTicket.parkingPass.ownerPhone}</p></div>
+                      <div><p className="text-[10px] text-[#6b541a]">เลขที่ป้ายรถ</p><p className="font-mono font-black">{selectedTicket.parkingPass.registrationCode}</p></div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-lg bg-[#f4edda] border border-[#D8A934] p-3">
+                        <p className="text-[10px] text-[#6b541a]">โซนจอดรถ / PARKING ZONE</p>
+                        <p className="mt-1 text-lg font-black">{selectedTicket.parkingPass.parkingZone || 'จัดสรรโดยเจ้าหน้าที่'}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#f4edda] border border-[#D8A934] p-3">
+                        <p className="text-[10px] text-[#6b541a]">ช่องจอด / PARKING SLOT</p>
+                        <p className="mt-1 text-lg font-black">{selectedTicket.parkingPass.parkingSlot || 'ตามคำแนะนำหน้างาน'}</p>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-[10px] leading-relaxed text-[#534a32]">
+                      วางป้ายนี้บริเวณกระจกหน้ารถให้เจ้าหน้าที่เห็นชัดเจน เจ้าหน้าที่สามารถสแกน QR เพื่อตรวจทะเบียนรถ เจ้าของรถ หน่วยงาน และสังกัดได้
+                    </p>
+                  </div>
+
+                  <div className="sm:w-52 shrink-0 flex flex-col items-center justify-center rounded-xl border border-[#d8cba6] bg-white p-4">
+                    <p className="text-[10px] font-black tracking-widest text-[#6b541a]">SCAN TO VERIFY VEHICLE</p>
+                    {selectedParkingQr ? (
+                      <img className="parking-qr-image mt-2 w-40 h-40 sm:w-44 sm:h-44 object-contain" src={selectedParkingQr} alt={"QR ป้ายรถ " + selectedTicket.parkingPass.vehiclePlate} />
+                    ) : (
+                      <div className="mt-2 w-40 h-40 flex items-center justify-center text-xs text-gray-500">กำลังสร้าง QR รถ…</div>
+                    )}
+                    <p className="mt-2 text-center text-[10px] font-mono break-all text-black">{selectedTicket.parkingPass.registrationCode}</p>
+                    <p className="mt-2 text-center text-[10px] font-bold text-[#6b541a]">QR รถนี้แยกจาก QR ตั๋วเข้างาน</p>
+                  </div>
+                </div>
+              </article>
+            )}
+
             <div className="flex flex-wrap items-center gap-3 no-print ticket-print-hide">
               <button
                 onClick={handlePrintTicket}
@@ -385,8 +521,28 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                 className="cursor-pointer py-3 px-4 rounded-xl bg-[#182719] hover:bg-[#223624] border border-[#D8A934]/60 text-[#FFF9ED] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow transition-all disabled:opacity-50"
               >
                 <Download className="w-4 h-4 text-[#D8A934]" />
-                บันทึก QR สำหรับเช็กอิน
+                บันทึก QR ตั๋วเข้างาน
               </button>
+              {selectedTicket.parkingPass && (
+                <>
+                  <button
+                    onClick={handlePrintParkingPass}
+                    className="cursor-pointer py-3 px-4 rounded-xl bg-[#FFF9ED] hover:bg-[#f0e5c7] border border-[#D8A934] text-[#10140F] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all"
+                    title="พิมพ์ป้ายติดรถหรือบันทึกเป็น PDF"
+                  >
+                    <Printer className="w-4 h-4" />
+                    พิมพ์ป้ายติดรถ
+                  </button>
+                  <button
+                    onClick={handleDownloadParkingQr}
+                    disabled={!selectedParkingQr}
+                    className="cursor-pointer py-3 px-4 rounded-xl bg-[#182719] hover:bg-[#223624] border border-[#D8A934]/60 text-[#FFF9ED] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all disabled:opacity-50"
+                  >
+                    <Download className="w-4 h-4 text-[#D8A934]" />
+                    บันทึก QR รถ
+                  </button>
+                </>
+              )}
               <button
                 onClick={handleCopyTicketCode}
                 className="cursor-pointer py-3 px-4 rounded-xl bg-[#10140F] hover:bg-[#182719] border border-[#30391E] text-[#FFF9ED] text-xs font-semibold flex items-center gap-2 transition-all"
@@ -453,7 +609,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               {parentOrder && (
                 <div className="bg-[#182719] p-6 rounded-2xl border border-[#30391E] text-xs space-y-4">
                   <h3 className="font-display text-sm font-bold text-[#D8A934] uppercase tracking-wider pb-2 border-b border-[#30391E]">
-                    ข้อมูลคำสั่งซื้อ #{parentOrder.id}
+                    ข้อมูลการลงทะเบียน #{parentOrder.id}
                   </h3>
 
                   <div className="space-y-2 text-[#F3E7C8]/85">
@@ -470,13 +626,13 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                       <span>{parentOrder.buyerEmail}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#65705A]">สถานะการชำระ:</span>
-                      <span className="text-emerald-400 font-bold">ชำระเงินเรียบร้อยแล้ว</span>
+                      <span className="text-[#65705A]">สถานะการลงทะเบียน:</span>
+                      <span className="text-emerald-400 font-bold">ยืนยันแล้ว · ออกบัตรแล้ว</span>
                     </div>
                     <div className="flex justify-between pt-2 border-t border-[#30391E]">
-                      <span className="text-[#65705A]">ยอดชำระ:</span>
+                      <span className="text-[#65705A]">ค่าเข้าร่วมงาน:</span>
                       <strong className="font-mono text-[#D8A934] text-sm">
-                        ฿{parentOrder.totalAmount.toLocaleString()} THB
+                        ฟรี
                       </strong>
                     </div>
                   </div>
@@ -487,7 +643,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               {parentOrder && parentOrder.tickets.length > 1 && (
                 <div className="bg-[#182719] p-6 rounded-2xl border border-[#30391E] space-y-3">
                   <h3 className="font-display text-sm font-bold text-[#FFF9ED]">
-                    บัตรทั้งหมดในคำสั่งซื้อนี้ ({parentOrder.tickets.length} รายการ):
+                    บัตรทั้งหมดในรายการลงทะเบียนนี้ ({parentOrder.tickets.length} รายการ):
                   </h3>
 
                   <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -520,14 +676,14 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               {onBuyMoreTickets && (
                 <div className="text-center p-6 rounded-2xl bg-[#182719]/40 border border-[#30391E] space-y-3">
                   <p className="font-display text-sm font-bold text-[#FFF9ED]">
-                    ต้องการซื้อบัตรหรือโต๊ะ VIP เพิ่มเติม?
+                    ต้องการลงทะเบียนเพิ่ม?
                   </p>
                   <button
                     onClick={onBuyMoreTickets}
                     className="cursor-pointer inline-flex items-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-6 py-3 rounded-xl transition-all shadow"
                   >
                     <Ticket className="w-4 h-4" />
-                    สั่งซื้อบัตรเพิ่ม
+                    ลงทะเบียนเพิ่ม
                   </button>
                 </div>
               )}
@@ -538,23 +694,23 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
           <div className="max-w-2xl mx-auto rounded-2xl border border-[#D8A934]/35 bg-[#182719] p-6 sm:p-8 space-y-5">
             <div className="text-center">
               <Clock className="w-10 h-10 text-[#D8A934] mx-auto mb-3" />
-              <p className="text-xs uppercase tracking-widest text-[#D8A934]">ORDER STATUS</p>
+              <p className="text-xs uppercase tracking-widest text-[#D8A934]">REGISTRATION STATUS</p>
               <h3 className="font-display text-xl sm:text-2xl font-bold text-[#FFF9ED] mt-2">
-                คำสั่งซื้อ {selectedOrderRecord.id}
+                รายการลงทะเบียน {selectedOrderRecord.id}
               </h3>
               <p className="text-3xl font-bold text-[#D8A934] mt-3">
-                ฿{selectedOrderRecord.totalAmount.toLocaleString()} <span className="text-xs text-[#65705A]">THB</span>
+                ไม่มีค่าใช้จ่าย
               </p>
             </div>
 
             <div className="rounded-xl border border-[#30391E] bg-[#10140F] p-4 space-y-2 text-sm">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-[#65705A]">สถานะคำสั่งซื้อ</span>
+                <span className="text-[#65705A]">สถานะการลงทะเบียน</span>
                 <span className={selectedOrderRecord.paymentStatus === 'PAID' ? 'font-bold text-emerald-300' : selectedOrderRecord.paymentStatus === 'VERIFYING' ? 'font-bold text-amber-300' : 'font-bold text-[#F3E7C8]'}>
-                  {selectedOrderRecord.paymentStatus === 'PAID' ? 'ชำระแล้ว · ออกบัตรแล้ว' :
-                   selectedOrderRecord.paymentStatus === 'VERIFYING' ? 'ส่งสลิปแล้ว · รอตรวจสอบ' :
+                  {selectedOrderRecord.paymentStatus === 'PAID' ? 'ลงทะเบียนแล้ว · ออกบัตรแล้ว' :
+                   selectedOrderRecord.paymentStatus === 'VERIFYING' ? 'รายการเดิมรอตรวจสอบ' :
                    selectedOrderRecord.paymentStatus === 'FAILED' ? 'หมดอายุหรือไม่สำเร็จ' :
-                   selectedOrderRecord.paymentStatus === 'CANCELLED' ? 'ยกเลิกคำสั่งซื้อ' : 'รอชำระเงิน'}
+                   selectedOrderRecord.paymentStatus === 'CANCELLED' ? 'ยกเลิกรายการลงทะเบียน' : 'รอยืนยันการลงทะเบียน'}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
@@ -567,12 +723,12 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               </div>
               {selectedOrderRecord.paymentStatus === 'VERIFYING' && (
                 <p className="text-xs text-amber-200 pt-2">
-                  เจ้าหน้าที่กำลังตรวจสอบยอดเงินจริงในบัญชี บัตรจะปรากฏหลังอนุมัติแล้วเท่านั้น
+                  รายการนี้เป็นข้อมูลเดิมที่ยังรอการตรวจสอบจากผู้จัดงาน กรุณาติดต่อผู้จัดงานเพื่อยืนยันสิทธิ์
                 </p>
               )}
               {selectedOrderRecord.paymentStatus === 'PENDING' && (
                 <p className="text-xs text-[#F3E7C8]/75 pt-2">
-                  คำสั่งซื้อยังรอการชำระเงิน กรุณากลับไปยังขั้นตอนชำระเงินหรือใช้รหัสติดตามที่บันทึกไว้
+                  รายการนี้ยังไม่ยืนยันการลงทะเบียน โปรดติดต่อผู้จัดงาน หรือใช้รหัสติดตามเพื่อตรวจสอบข้อมูล
                 </p>
               )}
             </div>
@@ -594,14 +750,14 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
               <Ticket className="w-12 h-12 text-[#65705A] mx-auto" />
             )}
             <h3 className="font-display text-xl font-bold text-[#FFF9ED]">
-              {loadingOrders ? 'กำลังค้นหาคำสั่งซื้อ...' : 'ค้นหาคำสั่งซื้อเพื่อแสดงบัตรของคุณ'}
+              {loadingOrders ? 'กำลังค้นหารายการลงทะเบียน...' : 'ค้นหารายการลงทะเบียนเพื่อแสดงบัตรของคุณ'}
             </h3>
             <p className="text-xs text-[#F3E7C8]/75">
-              {ordersError || 'กรอกเลขคำสั่งซื้อและรหัสติดตามส่วนตัว แล้วกดค้นหา ระบบจะแสดงบัตรเมื่อคำสั่งซื้อได้รับการอนุมัติแล้ว'}
+              {ordersError || 'กรอกเลขลงทะเบียนและรหัสติดตามส่วนตัว แล้วกดค้นหา ระบบจะแสดงบัตรดิจิทัลเมื่อยืนยันการลงทะเบียนแล้ว'}
             </p>
             {orders.length > 0 && (
               <div className="text-left pt-2 space-y-2">
-                <p className="text-xs font-bold text-[#D8A934]">คำสั่งซื้อที่บันทึกไว้ในอุปกรณ์นี้</p>
+                <p className="text-xs font-bold text-[#D8A934]">รายการลงทะเบียนที่บันทึกไว้ในอุปกรณ์นี้</p>
                 {orders.map((order) => (
                   <button
                     key={order.id}
@@ -614,9 +770,9 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                   >
                     <span>
                       <span className="block text-xs font-bold text-[#FFF9ED]">{order.id}</span>
-                      <span className="block text-[11px] text-[#65705A]">{order.paymentStatus === 'VERIFYING' ? 'รอตรวจสอบสลิป' : order.paymentStatus === 'PAID' ? 'ชำระแล้ว' : 'รอชำระเงิน'}</span>
+                      <span className="block text-[11px] text-[#65705A]">{order.paymentStatus === 'VERIFYING' ? 'รอผู้จัดงานตรวจสอบ' : order.paymentStatus === 'PAID' ? 'ลงทะเบียนแล้ว' : 'รอยืนยันการลงทะเบียน'}</span>
                     </span>
-                    <span className="text-xs font-bold text-[#D8A934]">฿{order.totalAmount.toLocaleString()}</span>
+                    
                   </button>
                 ))}
               </div>
@@ -626,7 +782,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                 onClick={onBuyMoreTickets}
                 className="cursor-pointer inline-flex items-center gap-2 bg-[#D8A934] text-[#10140F] font-bold text-xs uppercase px-6 py-3 rounded-xl"
               >
-                ไปหน้าเลือกซื้อบัตร
+                ไปหน้าลงทะเบียน
               </button>
             )}
           </div>
