@@ -325,7 +325,7 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                     <strong>{selectedTicket.ticketKind === 'VIP' ? 'VIP TABLE PASS' : 'GENERAL ADMISSION'}</strong>
                     <span>{selectedTicket.ticketKind === 'VIP' ? '1 Table · Up to 6 Guests' : '1 Person · Single Entry'}</span>
                     <span className="rhf-e-ticket-paid-label">
-                      ฿{selectedTicket.ticketPrice.toLocaleString()} THB
+                      FREE REGISTRATION
                     </span>
                   </div>
                 </div>
