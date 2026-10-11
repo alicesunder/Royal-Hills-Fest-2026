@@ -300,6 +300,30 @@ async function checkVehiclePass(request: Request, body: JsonObject) {
 }
 
 
+async function adminListVehiclePasses(request: Request, body: JsonObject) {
+  const admin = await requireAdmin(request);
+  const limit = integer(body.limit, 1, 500) ?? 200;
+  return await rpc("ticketing_admin_vehicle_passes", {
+    p_staff_id: admin.id,
+    p_limit: limit,
+  });
+}
+
+async function adminAssignVehicleParking(request: Request, body: JsonObject) {
+  const admin = await requireAdmin(request);
+  const registrationCode = text(body.registrationCode, 64);
+  const parkingZone = text(body.parkingZone, 100);
+  const parkingSlot = text(body.parkingSlot, 100);
+  if (!registrationCode) throw new ApiError(400, "กรุณาระบุรหัสป้ายรถ");
+  if (parkingSlot && !parkingZone) throw new ApiError(400, "กรุณาระบุโซนจอดก่อนเลือกช่องจอด");
+  return await rpc("ticketing_assign_vehicle_parking", {
+    p_staff_id: admin.id,
+    p_registration_code: registrationCode,
+    p_parking_zone: parkingZone || null,
+    p_parking_slot: parkingSlot || null,
+  });
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (request.method !== "POST") {
@@ -334,6 +358,12 @@ Deno.serve(async (request: Request) => {
         break;
       case "check-vehicle":
         result = await checkVehiclePass(request, body);
+        break;
+      case "admin-vehicles":
+        result = await adminListVehiclePasses(request, body);
+        break;
+      case "assign-parking":
+        result = await adminAssignVehicleParking(request, body);
         break;
       default:
         throw new ApiError(400, "ไม่รู้จักคำสั่งที่ร้องขอ");
