@@ -215,7 +215,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </span>
             <h3 className="font-display text-lg sm:text-xl font-bold text-[#FFF9ED]">
               {step === 1 && 'ข้อมูลผู้ซื้อและผู้เข้าร่วมงาน'}
-              {step === 2 && 'สรุปรายการสั่งซื้อ'}
+              {step === 2 && 'ตรวจสอบข้อมูลการลงทะเบียน'}
               {step === 3 && 'ลงทะเบียนสำเร็จ'}
               {step === 3 && 'ลงทะเบียนสำเร็จ'}
             </h3>
@@ -557,7 +557,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           )}
 
-          {/* STEP 4: สำเร็จ (Success) */}
+          {/* STEP 3: ลงทะเบียนสำเร็จ */}
           {step === 3 && createdOrder && createdOrder.paymentStatus === 'PAID' && createdOrder.tickets.length > 0 && (
             <div className="text-center py-6 space-y-6">
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center mx-auto shadow-xl">
