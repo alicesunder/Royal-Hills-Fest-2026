@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveView } from '../types';
-import { Menu, X, Ticket, QrCode, ScanLine, Shield } from 'lucide-react';
+import { Menu, X, Ticket, QrCode, ScanLine, Shield, MapPin, Play, CalendarDays } from 'lucide-react';
 import { ScrollProgressBar } from './fx';
 
 interface NavbarProps {
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
   onBuyTicketsClick: () => void;
+  showMobileBottomNav?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeView,
   setActiveView,
   onBuyTicketsClick,
+  showMobileBottomNav = true,
 }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,6 +32,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       });
       const tp = document.getElementById('tickets-preview');
       if (tp && tp.getBoundingClientRect().top + window.scrollY <= probe) cur = 'tickets';
+      ['location', 'faq'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top + window.scrollY <= probe) cur = id;
+      });
       setSpy(cur);
     };
     on();
@@ -79,6 +85,27 @@ export const Navbar: React.FC<NavbarProps> = ({
         el.scrollIntoView({ behavior: 'smooth' });
       }
     }
+  };
+
+  const handleBottomNavClick = (
+    destination: 'my-tickets' | 'location' | 'admin' | 'experience' | 'schedule',
+  ) => {
+    setMobileMenuOpen(false);
+    if (destination === 'location') {
+      setActiveView('home');
+      window.setTimeout(() => {
+        document.getElementById('location')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+      return;
+    }
+    if (destination === 'experience' || destination === 'schedule') {
+      setActiveView(destination);
+      window.setTimeout(() => {
+        document.getElementById(destination)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+      return;
+    }
+    handleNavClick(destination);
   };
 
   return (
@@ -230,6 +257,57 @@ export const Navbar: React.FC<NavbarProps> = ({
               ลงทะเบียนเข้าร่วมงานฟรี
             </button>
           </div>
+        </nav>
+      )}
+
+      {/* Premium mobile quick navigation — fixed above the safe-area inset. */}
+      {showMobileBottomNav && !mobileMenuOpen && (
+        <nav className="mobile-bottom-nav lg:hidden" aria-label="เมนูลัดบนมือถือ">
+          <button
+            type="button"
+            onClick={() => handleBottomNavClick('my-tickets')}
+            className={`mobile-bottom-nav__item ${activeView === 'my-tickets' ? 'is-active' : ''}`}
+            aria-current={activeView === 'my-tickets' ? 'page' : undefined}
+          >
+            <Ticket aria-hidden="true" />
+            <span>บัตรของฉัน</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleBottomNavClick('location')}
+            className={`mobile-bottom-nav__item ${homeLike && spy === 'location' ? 'is-active' : ''}`}
+            aria-current={homeLike && spy === 'location' ? 'page' : undefined}
+          >
+            <MapPin aria-hidden="true" />
+            <span>เส้นทาง</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleBottomNavClick('admin')}
+            className={`mobile-bottom-nav__item mobile-bottom-nav__item--center ${activeView === 'admin' ? 'is-active' : ''}`}
+            aria-current={activeView === 'admin' ? 'page' : undefined}
+          >
+            <span className="mobile-bottom-nav__center-icon"><Shield aria-hidden="true" /></span>
+            <span>จัดการ</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleBottomNavClick('experience')}
+            className={`mobile-bottom-nav__item ${homeLike && spy === 'experience' ? 'is-active' : ''}`}
+            aria-current={homeLike && spy === 'experience' ? 'page' : undefined}
+          >
+            <Play aria-hidden="true" />
+            <span>ประสบการณ์</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleBottomNavClick('schedule')}
+            className={`mobile-bottom-nav__item ${homeLike && spy === 'schedule' ? 'is-active' : ''}`}
+            aria-current={homeLike && spy === 'schedule' ? 'page' : undefined}
+          >
+            <CalendarDays aria-hidden="true" />
+            <span>กำหนดการ</span>
+          </button>
         </nav>
       )}
       <ScrollProgressBar />

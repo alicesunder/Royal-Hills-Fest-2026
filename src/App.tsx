@@ -75,6 +75,7 @@ export default function App() {
       {/* Top Navbar */}
       <Navbar
         activeView={activeView}
+        showMobileBottomNav={!(activeView === 'tickets' && activeCart.length > 0) && !isCheckoutOpen}
         setActiveView={(view) => {
           if (view === 'my-tickets') setCurrentOrder(null);
           setActiveView(view);
