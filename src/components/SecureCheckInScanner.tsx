@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { AlertTriangle, Camera, CameraOff, CheckCircle2, LogIn, LogOut, QrCode, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, Camera, CameraOff, CheckCircle2, LogIn, LogOut, QrCode, RefreshCw, ShieldCheck, Ticket, XCircle } from 'lucide-react';
 import { getAdminAccessToken, getCachedAdminEmail, signInAdmin, signOutAdmin } from '../services/supabaseAdminAuth';
 import { ticketingApiService } from '../services/ticketingApiService';
 
