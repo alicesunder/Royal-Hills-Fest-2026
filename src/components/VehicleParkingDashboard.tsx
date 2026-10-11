@@ -513,6 +513,7 @@ export const VehicleParkingDashboard: React.FC = () => {
             <div className="space-y-4">
               {filteredVehicles.map((row) => {
                 const draft = drafts[row.registration_code] || { zone: row.parking_zone || '', slot: row.parking_slot || '' };
+                const legacyDraft = legacyDrafts[row.registration_code] || { rank: row.owner_rank, name: row.owner_name, phone: row.owner_phone, email: row.owner_email, organization: row.organization, affiliation: row.affiliation, vehiclePlate: row.vehicle_plate };
                 const arrived = Boolean(row.arrival_verified_at);
                 return (
                   <article key={row.registration_code} className="rounded-2xl border border-[#30391E] bg-[#182719] p-4 sm:p-5 space-y-4">
