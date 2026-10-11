@@ -227,7 +227,15 @@ export const ticketingApiService = {
 
   async getVehiclePasses(accessToken: string, limit = 200): Promise<{
     vehicles: JsonRecord[];
-    stats: { total: number; assigned: number; arrived: number };
+    stats: {
+      total: number;
+      assigned: number;
+      arrived: number;
+      normal_people: number;
+      vip_people: number;
+      vip_tables: number;
+      total_people: number;
+    };
   }> {
     assertConfigured();
     const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
@@ -251,6 +259,10 @@ export const ticketingApiService = {
         total: Number(rawStats.total || 0),
         assigned: Number(rawStats.assigned || 0),
         arrived: Number(rawStats.arrived || 0),
+        normal_people: Number(rawStats.normal_people || 0),
+        vip_people: Number(rawStats.vip_people || 0),
+        vip_tables: Number(rawStats.vip_tables || 0),
+        total_people: Number(rawStats.total_people || 0),
       },
     };
   },
