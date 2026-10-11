@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CarFront,
   CheckCircle2,
+  Crown,
   LogIn,
   LogOut,
   MapPin,
@@ -10,6 +11,7 @@ import {
   Save,
   Search,
   ShieldCheck,
+  Ticket,
   Users,
 } from 'lucide-react';
 import { getAdminAccessToken, getCachedAdminEmail, signInAdmin, signOutAdmin } from '../services/supabaseAdminAuth';
@@ -33,6 +35,22 @@ type VehiclePassRow = {
   arrival_verified_at: string | null;
   scan_count: number;
   created_at: string;
+  attendee_names: string[];
+};
+
+type DashboardStats = {
+  total: number;
+  assigned: number;
+  arrived: number;
+  normal_people: number;
+  vip_people: number;
+  vip_tables: number;
+  total_people: number;
+};
+
+const EMPTY_STATS: DashboardStats = {
+  total: 0, assigned: 0, arrived: 0,
+  normal_people: 0, vip_people: 0, vip_tables: 0, total_people: 0,
 };
 
 type DraftAssignment = { zone: string; slot: string };
@@ -56,6 +74,9 @@ const rowFromJson = (raw: Record<string, unknown>): VehiclePassRow => ({
   arrival_verified_at: typeof raw.arrival_verified_at === 'string' ? raw.arrival_verified_at : null,
   scan_count: Number(raw.scan_count || 0),
   created_at: stringValue(raw.created_at),
+  attendee_names: Array.isArray(raw.attendee_names)
+    ? raw.attendee_names.filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+    : [],
 });
 
 export const VehicleParkingDashboard: React.FC = () => {
@@ -69,7 +90,7 @@ export const VehicleParkingDashboard: React.FC = () => {
   const [notice, setNotice] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [vehicles, setVehicles] = useState<VehiclePassRow[]>([]);
-  const [stats, setStats] = useState({ total: 0, assigned: 0, arrived: 0 });
+  const [stats, setStats] = useState<DashboardStats>({ ...EMPTY_STATS });
   const [drafts, setDrafts] = useState<Record<string, DraftAssignment>>({});
 
   const loadVehicles = useCallback(async (token: string) => {
@@ -131,7 +152,7 @@ export const VehicleParkingDashboard: React.FC = () => {
     setAccessToken(null);
     setPassword('');
     setVehicles([]);
-    setStats({ total: 0, assigned: 0, arrived: 0 });
+    setStats({ ...EMPTY_STATS });
     setNotice('');
   };
 
@@ -142,6 +163,7 @@ export const VehicleParkingDashboard: React.FC = () => {
       row.registration_code, row.ticket_code, row.order_number, row.vehicle_plate,
       row.owner_rank, row.owner_name, row.owner_phone, row.owner_email,
       row.organization, row.affiliation, row.parking_zone, row.parking_slot,
+      ...row.attendee_names,
     ].some((value) => (value || '').toLocaleLowerCase().includes(query)));
   }, [vehicles, searchQuery]);
 
@@ -222,19 +244,52 @@ export const VehicleParkingDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
-                <p className="text-xs text-[#65705A] flex items-center gap-2"><CarFront className="w-4 h-4" /> รถที่ลงทะเบียน</p>
-                <p className="text-3xl font-black text-[#FFF9ED] mt-2">{stats.total}</p>
+            <section className="space-y-3" aria-label="สรุปจำนวนผู้ลงทะเบียน">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-[#FFF9ED]">สรุปจำนวนผู้เข้าร่วม</h2>
+                <p className="text-[11px] sm:text-xs text-[#65705A] mt-1">บัตรปกตินับ 1 คนต่อบัตร ส่วน VIP คิดตามสิทธิ์ 6 ที่นั่งต่อโต๊ะ รายชื่อที่ระบุจะแสดงในการ์ดแต่ละโต๊ะ</p>
               </div>
-              <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
-                <p className="text-xs text-[#65705A] flex items-center gap-2"><MapPin className="w-4 h-4" /> จัดสรรโซนแล้ว</p>
-                <p className="text-3xl font-black text-[#D8A934] mt-2">{stats.assigned}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
+                  <p className="text-xs text-[#65705A] flex items-center gap-2"><Ticket className="w-4 h-4" /> บัตรปกติ · คน</p>
+                  <p className="text-3xl font-black text-[#FFF9ED] mt-2">{stats.normal_people}</p>
+                </div>
+                <div className="rounded-xl border border-[#D8A934]/40 bg-[#182719] p-4">
+                  <p className="text-xs text-[#D8A934] flex items-center gap-2"><Crown className="w-4 h-4" /> VIP · สิทธิ์ที่นั่ง</p>
+                  <p className="text-3xl font-black text-[#D8A934] mt-2">{stats.vip_people} <span className="text-sm font-semibold">คน</span></p>
+                </div>
+                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
+                  <p className="text-xs text-[#65705A] flex items-center gap-2"><Users className="w-4 h-4" /> โต๊ะ VIP</p>
+                  <p className="text-3xl font-black text-[#FFF9ED] mt-2">{stats.vip_tables} <span className="text-sm font-semibold">โต๊ะ</span></p>
+                </div>
+                <div className="rounded-xl border border-emerald-800/60 bg-[#182719] p-4">
+                  <p className="text-xs text-emerald-300 flex items-center gap-2"><Users className="w-4 h-4" /> รวมสิทธิ์เข้าร่วม</p>
+                  <p className="text-3xl font-black text-emerald-300 mt-2">{stats.total_people} <span className="text-sm font-semibold">คน</span></p>
+                </div>
               </div>
-              <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
-                <p className="text-xs text-[#65705A] flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> ตรวจรถขาเข้าแล้ว</p>
-                <p className="text-3xl font-black text-emerald-300 mt-2">{stats.arrived}</p>
+            </section>
+
+            <section className="space-y-3" aria-label="สถานะรถและที่จอด">
+              <h2 className="text-base sm:text-lg font-bold text-[#FFF9ED]">สถานะรถและที่จอด</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
+                  <p className="text-xs text-[#65705A] flex items-center gap-2"><CarFront className="w-4 h-4" /> รถที่ลงทะเบียน</p>
+                  <p className="text-3xl font-black text-[#FFF9ED] mt-2">{stats.total}</p>
+                </div>
+                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
+                  <p className="text-xs text-[#65705A] flex items-center gap-2"><MapPin className="w-4 h-4" /> จัดสรรโซนแล้ว</p>
+                  <p className="text-3xl font-black text-[#D8A934] mt-2">{stats.assigned}</p>
+                </div>
+                <div className="rounded-xl border border-[#30391E] bg-[#182719] p-4">
+                  <p className="text-xs text-[#65705A] flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> ตรวจรถขาเข้าแล้ว</p>
+                  <p className="text-3xl font-black text-emerald-300 mt-2">{stats.arrived}</p>
+                </div>
               </div>
+            </section>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <h2 className="text-base sm:text-lg font-bold text-[#FFF9ED]">รายชื่อผู้ลงทะเบียนและผู้ถือบัตร</h2>
+              <span className="text-[11px] text-[#65705A]">แสดงรายการรถ/สิทธิ์ลงทะเบียนล่าสุดสูงสุด 500 รายการ</span>
             </div>
 
             <div className="rounded-xl border border-[#30391E] bg-[#182719] p-3 sm:p-4 flex items-center gap-3">
@@ -262,9 +317,29 @@ export const VehicleParkingDashboard: React.FC = () => {
                           <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${arrived ? 'bg-emerald-950/50 text-emerald-300 border border-emerald-700/50' : 'bg-[#10140F] text-[#F3E7C8]/70 border border-[#30391E]'}`}>
                             {arrived ? 'ตรวจรถขาเข้าแล้ว' : 'ยังไม่เข้าพื้นที่'}
                           </span>
-                          {row.ticket_type === 'tt-vip' && <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#D8A934]/15 text-[#D8A934] border border-[#D8A934]/40">VIP</span>}
+                          {row.ticket_type === 'tt-vip' ? (
+                            <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#D8A934]/15 text-[#D8A934] border border-[#D8A934]/40">VIP · 1 โต๊ะ / 6 ที่นั่ง</span>
+                          ) : (
+                            <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#FFF9ED]/5 text-[#F3E7C8] border border-[#30391E]">บัตรปกติ · 1 คน</span>
+                          )}
                         </div>
                         <h2 className="text-lg font-bold mt-2">{row.owner_rank ? row.owner_rank + ' ' : ''}{row.owner_name}</h2>
+                        {row.ticket_type === 'tt-vip' && (
+                          <div className="mt-4 rounded-xl border border-[#D8A934]/25 bg-[#10140F]/60 p-3 sm:p-4">
+                            <p className="text-xs font-bold text-[#D8A934] mb-2">รายชื่อผู้ร่วมโต๊ะ VIP ({row.attendee_names.length}/6 คนที่ระบุชื่อ)</p>
+                            {row.attendee_names.length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {row.attendee_names.map((name, index) => (
+                                  <p key={row.registration_code + '-guest-' + index} className="text-xs text-[#F3E7C8] flex gap-2">
+                                    <span className="text-[#65705A] font-mono">{index + 1}.</span><span>{name}</span>
+                                  </p>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-[#65705A]">ยังไม่มีการระบุชื่อผู้ร่วมโต๊ะเพิ่มเติม</p>
+                            )}
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-3 text-xs text-[#F3E7C8]/85">
                           <p><span className="text-[#65705A]">หน่วยงาน: </span>{row.organization}</p>
                           <p><span className="text-[#65705A]">สังกัด: </span>{row.affiliation}</p>
