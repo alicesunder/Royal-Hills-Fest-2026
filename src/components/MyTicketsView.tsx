@@ -371,6 +371,43 @@ export const MyTicketsView: React.FC<MyTicketsViewProps> = ({
                   </div>
                 </div>
 
+                <div className="rhf-e-ticket-registration" aria-label="ข้อมูลผู้ลงทะเบียน">
+                  <div className="rhf-e-ticket-person-heading">
+                    <span>REGISTERED ATTENDEE</span>
+                    <strong>{selectedTicket.ticketKind === 'VIP' ? 'VIP TABLE OWNER' : 'GENERAL ADMISSION'}</strong>
+                  </div>
+                  <div className="rhf-e-ticket-person-grid">
+                    <div>
+                      <span>ยศ / ตำแหน่ง</span>
+                      <strong>{selectedTicket.parkingPass?.ownerRank || selectedTicket.rank || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>ชื่อ-นามสกุล</span>
+                      <strong>{selectedTicket.parkingPass?.ownerName || selectedTicket.attendeeName || parentOrder?.buyerName || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>หน่วยงาน</span>
+                      <strong>{selectedTicket.parkingPass?.organization || selectedTicket.organization || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>สังกัด</span>
+                      <strong>{selectedTicket.parkingPass?.affiliation || selectedTicket.affiliation || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>โทรศัพท์</span>
+                      <strong>{selectedTicket.parkingPass?.ownerPhone || selectedTicket.attendeePhone || parentOrder?.buyerPhone || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>อีเมล</span>
+                      <strong>{selectedTicket.parkingPass?.ownerEmail || selectedTicket.attendeeEmail || parentOrder?.buyerEmail || '—'}</strong>
+                    </div>
+                    <div className="rhf-e-ticket-vehicle-detail">
+                      <span>ทะเบียนรถ</span>
+                      <strong>{selectedTicket.parkingPass?.vehiclePlate || selectedTicket.vehiclePlate || '—'}</strong>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="rhf-e-ticket-bottom">
                   <span className="rhf-e-ticket-banner">E-TICKET</span>
                   <span className="rhf-e-ticket-full-id">TICKET ID · {selectedTicket.id}</span>
