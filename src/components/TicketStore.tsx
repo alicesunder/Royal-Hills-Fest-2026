@@ -101,9 +101,8 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
   const normalQty = quantities['tt-normal'] || 0;
   const vipQty = quantities['tt-vip'] || 0;
 
-  // Order Calculation: (normalQuantity × 555) + (vipTableQuantity × 5555)
-  const totalAmount =
-    normalQty * (normalTicket?.price || 555) + vipQty * (vipTicket?.price || 5555);
+  // Registration is free; the server remains the source of truth for availability.
+  const totalAmount = 0;
   const totalCartCount = normalQty + vipQty;
 
   const getCartItems = (): CartItem[] => {
@@ -131,10 +130,10 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
         <div className="ticket-store-header text-center max-w-3xl mx-auto mb-14 sm:mb-18">
           <div className="ticket-store-eyebrow inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#182719] border border-[#D8A934]/60 text-xs font-semibold tracking-[0.25em] uppercase text-[#D8A934] mb-4 shadow-lg">
             <Ticket className="w-3.5 h-3.5 text-[#D8A934]" />
-            Official Event Box Office · 14 NOV 2026
+            FREE REGISTRATION · 14 NOV 2026
           </div>
           <h1 className="ticket-store-title font-display text-4xl sm:text-6xl font-bold tracking-tight text-[#FFF9ED] leading-tight">
-            เลือกบัตรเข้าร่วมงาน
+            ลงทะเบียนเข้าร่วมงานฟรี
           </h1>
           <div className="w-24 h-0.5 bg-gradient-to-r from-transparent via-[#D8A934] to-transparent mx-auto mt-4 mb-4" />
           <p className="text-base sm:text-lg text-[#F3E7C8]/90 max-w-2xl mx-auto leading-relaxed font-light">
@@ -156,17 +155,17 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
           <div role="status" className="max-w-4xl mx-auto mb-8 rounded-xl border border-[#D8A934]/40 bg-[#182719] px-4 py-4 sm:px-5">
             <p className="text-sm font-bold text-[#D8A934]">
               {catalogStatus === 'loading'
-                ? 'กำลังตรวจสอบสถานะจำหน่ายบัตร...'
+                ? 'กำลังตรวจสอบสถานะลงทะเบียน...'
                 : catalogStatus === 'error'
-                  ? 'ยังเชื่อมต่อระบบจำหน่ายบัตรไม่ได้'
+                  ? 'ยังเชื่อมต่อระบบลงทะเบียนไม่ได้'
                   : ticketTypes.every((ticket) => ticket.saleStatus === 'SOLD_OUT')
                     ? 'บัตรทั้งสองประเภทจำหน่ายหมดแล้ว'
                     : ticketTypes.some((ticket) => ticket.saleStatus === 'SOLD_OUT')
                       ? 'บัตรบางประเภทจำหน่ายหมดแล้ว'
-                      : 'ขณะนี้ยังไม่เปิดจำหน่ายบัตรออนไลน์'}
+                      : 'ขณะนี้ยังไม่เปิดลงทะเบียนออนไลน์'}
             </p>
             <p className="text-xs text-[#F3E7C8]/75 mt-1 leading-relaxed">
-              {catalogStatus === 'error' ? (catalogError || 'กรุณาลองใหม่ภายหลัง') : 'ระบบจะแสดงราคาและจำนวนคงเหลือจากฐานข้อมูลจริงเมื่อผู้จัดงานเปิดขาย หลังเปิดขายแล้วจึงจะสามารถสั่งซื้อและชำระเงินได้'}
+              {catalogStatus === 'error' ? (catalogError || 'กรุณาลองใหม่ภายหลัง') : 'ระบบจะแสดงจำนวนสิทธิ์คงเหลือจากฐานข้อมูลจริง เมื่อเปิดลงทะเบียนแล้วจึงจะสามารถระบุจำนวนและกรอกข้อมูลผู้เข้าร่วมได้'}
             </p>
           </div>
         )}
@@ -235,7 +234,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       }`}
                     >
                       {isSoldOut
-                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมด'
+                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : isNotOnSale ? 'ยังไม่เปิดลงทะเบียน' : 'บัตรหมด'
                         : `คงเหลือ ${normalTicket.remainingQuantity} ใบ`}
                     </span>
                   </div>
@@ -252,13 +251,13 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                   <div className="p-4 rounded-2xl bg-[#10140F]/85 border border-[#30391E] mb-6 flex items-baseline justify-between shadow-inner">
                     <div>
                       <span className="text-[11px] uppercase text-[#65705A] tracking-wider block font-medium">
-                        ราคาบัตร
+                        ค่าลงทะเบียน
                       </span>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="font-mono text-4xl font-bold text-[#FFF9ED] tabular-nums">
-                          ฿{normalTicket.price.toLocaleString()}
+                          ฟรี
                         </span>
-                        <span className="text-xs text-[#65705A] font-mono">THB</span>
+                        <span className="text-xs text-[#65705A] font-mono">ไม่มีค่าใช้จ่าย</span>
                       </div>
                     </div>
 
@@ -298,14 +297,14 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       disabled
                       className="w-full py-4 rounded-xl bg-[#30391E]/40 border border-[#30391E] text-[#65705A] text-xs font-bold uppercase tracking-wider cursor-not-allowed"
                     >
-                      {catalogStatus === 'loading' ? 'กำลังตรวจสอบสถานะการขาย...' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม · กรุณาลองใหม่ภายหลัง' : catalogStatus === 'closed' || isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'บัตรหมดแล้ว (Sold Out)'}
+                      {catalogStatus === 'loading' ? 'กำลังตรวจสอบสถานะการขาย...' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม · กรุณาลองใหม่ภายหลัง' : catalogStatus === 'closed' || isNotOnSale ? 'ยังไม่เปิดลงทะเบียน' : 'บัตรหมดแล้ว (Sold Out)'}
                     </button>
                   ) : (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs font-semibold text-[#F3E7C8]/90 px-1">
-                        <span>จำนวนบัตร:</span>
+                        <span>จำนวนสิทธิ์:</span>
                         <span className="text-[11px] text-[#65705A] font-mono font-normal">
-                          ซื้อได้สูงสุด {normalTicket.maxPerOrder || 10} ใบ / คำสั่งซื้อ
+                          ลงทะเบียนได้สูงสุด {normalTicket.maxPerOrder || 10} ใบ / รายการ
                         </span>
                       </div>
 
@@ -344,9 +343,9 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
 
                       {normalQty > 0 ? (
                         <div className="flex items-center justify-between text-xs px-2 py-2 bg-[#182719] rounded-lg border border-[#30391E]">
-                          <span className="text-[#65705A]">ยอดรวมบัตรปกติ ({normalQty} ใบ):</span>
+                          <span className="text-[#65705A]">สิทธิ์ลงทะเบียนบัตรปกติ ({normalQty} ใบ):</span>
                           <span className="font-mono font-bold text-[#FFF9ED]">
-                            ฿{(normalQty * normalTicket.price).toLocaleString()} THB
+                            ฟรี
                           </span>
                         </div>
                       ) : (
@@ -444,7 +443,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                         <Flame className="w-4 h-4 text-[#C96F3D]" />
                       )}
                       {isSoldOut
-                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : isNotOnSale ? 'ยังไม่เปิดจำหน่าย' : 'โต๊ะ VIP หมดแล้ว'
+                        ? catalogStatus === 'loading' ? 'กำลังตรวจสอบ' : catalogStatus === 'error' ? 'ระบบยังไม่พร้อม' : isNotOnSale ? 'ยังไม่เปิดลงทะเบียน' : 'โต๊ะ VIP หมดแล้ว'
                         : `เหลือเพียง ${vipTicket.remainingQuantity} โต๊ะ`}
                     </span>
                   </div>
@@ -476,13 +475,13 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                   <div className="p-4 rounded-2xl bg-[#10140F]/90 border border-[#D8A934]/60 mb-6 flex items-baseline justify-between shadow-inner">
                     <div>
                       <span className="text-[11px] uppercase text-[#D8A934] tracking-wider block font-semibold">
-                        ราคาบัตร VIP
+                        ค่าลงทะเบียน VIP
                       </span>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="font-mono text-4xl font-bold text-[#D8A934] tabular-nums">
-                          ฿{vipTicket.price.toLocaleString()}
+                          ฟรี
                         </span>
-                        <span className="text-xs text-[#65705A] font-mono">THB</span>
+                        <span className="text-xs text-[#65705A] font-mono">ไม่มีค่าใช้จ่าย</span>
                       </div>
                     </div>
 
@@ -529,7 +528,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       <div className="flex items-center justify-between text-xs font-semibold text-[#D8A934] px-1">
                         <span>จำนวนโต๊ะ VIP:</span>
                         <span className="text-[11px] text-[#F3E7C8]/80 font-mono font-normal">
-                          ซื้อได้สูงสุด {vipTicket.maxPerOrder || 6} โต๊ะ / คำสั่งซื้อ
+                          ลงทะเบียนได้สูงสุด {vipTicket.maxPerOrder || 6} โต๊ะ / รายการ
                         </span>
                       </div>
 
@@ -573,9 +572,9 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
 
                       {vipQty > 0 ? (
                         <div className="flex items-center justify-between text-xs px-2 py-2 bg-[#182719] rounded-lg border border-[#D8A934]/40">
-                          <span className="text-[#D8A934]">ยอดรวมโต๊ะ VIP ({vipQty} โต๊ะ):</span>
+                          <span className="text-[#D8A934]">สิทธิ์ลงทะเบียน VIP ({vipQty} โต๊ะ):</span>
                           <span className="font-mono font-bold text-[#D8A934] text-sm">
-                            ฿{(vipQty * vipTicket.price).toLocaleString()} THB
+                            ฟรี
                           </span>
                         </div>
                       ) : (
@@ -600,27 +599,27 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
           <div className="max-w-2xl mx-auto mb-16 p-6 rounded-2xl bg-[#182719] border border-[#D8A934]/60 shadow-2xl animate-in fade-in">
             <h3 className="font-display text-lg font-bold text-[#FFF9ED] mb-3 flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-[#D8A934]" />
-              สรุปรายการคำสั่งซื้อของคุณ
+              สรุปรายการลงทะเบียนของคุณ
             </h3>
 
             <div className="space-y-2 text-xs divide-y divide-[#30391E]">
               {normalQty > 0 && (
                 <div className="flex items-center justify-between py-1.5">
                   <span className="text-[#F3E7C8]/90">
-                    บัตรปกติ × {normalQty} ใบ ({normalTicket?.price.toLocaleString() || 555} บาท / คน)
+                    บัตรปกติ × {normalQty} ใบ (ฟรี / คน)
                   </span>
                   <span className="font-mono font-bold text-[#FFF9ED]">
-                    ฿{(normalQty * normalTicket.price).toLocaleString()} บาท
+                    ฟรี
                   </span>
                 </div>
               )}
               {vipQty > 0 && (
                 <div className="flex items-center justify-between py-1.5">
                   <span className="text-[#D8A934]">
-                    บัตร VIP × {vipQty} โต๊ะ ({vipTicket?.price.toLocaleString() || 5555} บาท / โต๊ะ · {vipQty * 6} ที่นั่ง)
+                    บัตร VIP × {vipQty} โต๊ะ (ฟรี / โต๊ะ · {vipQty * 6} ที่นั่ง)
                   </span>
                   <span className="font-mono font-bold text-[#D8A934]">
-                    ฿{(vipQty * vipTicket.price).toLocaleString()} บาท
+                    ฟรี
                   </span>
                 </div>
               )}
@@ -630,7 +629,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
               <span className="font-bold text-[#FFF9ED] text-sm">ยอดรวมทั้งสิ้น:</span>
               <div className="text-right">
                 <span className="font-mono text-2xl font-bold text-[#D8A934]">
-                  ฿{totalAmount.toLocaleString()}
+                  ฟรี
                 </span>
                 <span className="text-xs text-[#65705A] ml-1 font-mono">THB</span>
               </div>
@@ -641,7 +640,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
               disabled={!canBuyTickets || totalCartCount === 0}
               className="mt-5 cursor-pointer w-full py-4 rounded-xl bg-gradient-to-r from-[#D8A934] to-[#c4982c] hover:brightness-110 text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-[#D8A934]/30 active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
             >
-              ดำเนินการสั่งซื้อ (ยอดรวม ฿{totalAmount.toLocaleString()})
+              ยืนยันการลงทะเบียน (ยอดรวม ฟรี)
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -652,7 +651,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
           <div className="flex items-center gap-3.5 justify-center sm:justify-start">
             <ShieldCheck className="w-7 h-7 text-[#D8A934] shrink-0" />
             <div>
-              <p className="font-bold text-[#FFF9ED] text-sm">ระบบจำหน่ายบัตรทางการ</p>
+              <p className="font-bold text-[#FFF9ED] text-sm">ระบบลงทะเบียนอย่างเป็นทางการ</p>
               <p className="text-[11px] text-[#65705A] mt-0.5">ออกบัตรและ QR Code ทางการจาก Royal Hills</p>
             </div>
           </div>
@@ -692,7 +691,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                     {vipQty > 0 ? `${vipQty} โต๊ะ VIP` : ''}
                   </span>
                   <span className="font-mono text-xl sm:text-2xl font-bold text-[#FFF9ED]">
-                    ฿{totalAmount.toLocaleString()}{' '}
+                    ฟรี{' '}
                     <span className="text-xs text-[#65705A] font-normal">THB</span>
                   </span>
                 </div>
@@ -721,7 +720,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                 disabled={!canBuyTickets || totalCartCount === 0}
                 className="cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-8 py-3.5 rounded-xl shadow-xl shadow-[#D8A934]/25 transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
               >
-                ดำเนินการสั่งซื้อ (฿{totalAmount.toLocaleString()})
+                ยืนยันการลงทะเบียน (ฟรี)
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -741,11 +740,11 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                       {item.ticketType.kind === 'VIP' ? '(1 โต๊ะ / 6 ที่นั่ง)' : '(ต่อคน)'}
                     </p>
                     <p className="text-[11px] text-[#65705A]">
-                      ฿{item.ticketType.price.toLocaleString()} × {item.quantity} {item.ticketType.unitLabel}
+                      ฟรี · {item.quantity} {item.ticketType.unitLabel}
                     </p>
                   </div>
                   <div className="text-right shrink-0 font-mono font-bold text-[#D8A934]">
-                    ฿{(item.ticketType.price * item.quantity).toLocaleString()}
+                    ฟรี
                   </div>
                 </div>
               ))}
