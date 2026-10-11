@@ -247,7 +247,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                     {normalTicket.description}
                   </p>
 
-                  {/* PRICE BOX: 555 บาท / คน (CLEARLY ต่อคน) */}
+                  {/* PRICE BOX: FREE / PERSON */}
                   <div className="p-4 rounded-2xl bg-[#10140F]/85 border border-[#30391E] mb-6 flex items-baseline justify-between shadow-inner">
                     <div>
                       <span className="text-[11px] uppercase text-[#65705A] tracking-wider block font-medium">
@@ -354,7 +354,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                           onClick={() => handleQuantityChange('tt-normal', 1, normalTicket.remainingQuantity)}
                           className="cursor-pointer w-full py-2.5 rounded-lg border border-[#30391E] hover:border-[#65705A] bg-[#182719]/40 text-[#F3E7C8]/80 text-xs font-semibold hover:text-[#FFF9ED] transition-colors"
                         >
-                          เลือกบัตร
+                          เพิ่มสิทธิ์
                         </button>
                       )}
                     </div>
@@ -471,7 +471,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                     </div>
                   </div>
 
-                  {/* PRICE BOX: 5,555 บาท / โต๊ะ (PROMINENTLY ต่อโต๊ะ) */}
+                  {/* PRICE BOX: FREE / VIP TABLE */}
                   <div className="p-4 rounded-2xl bg-[#10140F]/90 border border-[#D8A934]/60 mb-6 flex items-baseline justify-between shadow-inner">
                     <div>
                       <span className="text-[11px] uppercase text-[#D8A934] tracking-wider block font-semibold">
@@ -640,7 +640,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
               disabled={!canBuyTickets || totalCartCount === 0}
               className="mt-5 cursor-pointer w-full py-4 rounded-xl bg-gradient-to-r from-[#D8A934] to-[#c4982c] hover:brightness-110 text-[#10140F] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-[#D8A934]/30 active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
             >
-              ยืนยันการลงทะเบียน (ยอดรวม ฟรี)
+              ยืนยันการลงทะเบียน
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -720,7 +720,7 @@ export const TicketStore: React.FC<TicketStoreProps> = ({
                 disabled={!canBuyTickets || totalCartCount === 0}
                 className="cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#D8A934] hover:bg-[#c4982c] text-[#10140F] font-bold text-xs uppercase tracking-wider px-8 py-3.5 rounded-xl shadow-xl shadow-[#D8A934]/25 transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
               >
-                ยืนยันการลงทะเบียน (ฟรี)
+                ยืนยันการลงทะเบียน
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
