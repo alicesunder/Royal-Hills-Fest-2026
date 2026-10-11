@@ -110,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             { v: 'schedule' as ActiveView, label: 'กำหนดการ' },
             { v: 'my-tickets' as ActiveView, label: 'บัตรของฉัน', icon: <Ticket className="w-3.5 h-3.5 text-[#D8A934]" /> },
             { v: 'check-in' as ActiveView, label: 'เช็กอินหน้างาน', icon: <ScanLine className="w-3.5 h-3.5 text-[#C96F3D]" />, compact: true },
-            { v: 'admin' as ActiveView, label: 'จัดสรรที่จอดรถ', icon: <Shield className="w-3.5 h-3.5 text-[#65705A]" />, compact: true },
+            { v: 'admin' as ActiveView, label: 'จัดการ', icon: <Shield className="w-3.5 h-3.5 text-[#65705A]" />, compact: true },
           ].map((item) => {
             const on = current === item.v;
             return (
@@ -214,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="mobile-nav-staff-link text-left py-2 hover:text-[#D8A934] transition-colors flex items-center gap-2"
             >
               <Shield className="w-4 h-4 text-[#65705A]" />
-                จัดสรรที่จอดรถ / ทะเบียนรถ
+                จัดการ
               </button>
             </div>
           </div>
