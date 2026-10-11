@@ -13,6 +13,7 @@ import { TicketPreviewSection } from './components/TicketPreviewSection';
 import { CheckoutModal } from './components/CheckoutModal';
 import { MyTicketsView } from './components/MyTicketsView';
 import { SecureCheckInScanner } from './components/SecureCheckInScanner';
+import { VehicleParkingDashboard } from './components/VehicleParkingDashboard';
 import { ticketingApiService } from './services/ticketingApiService';
 import { ArrowRight, Ticket, CheckCircle2 } from 'lucide-react';
 import { AutoReveal, ScrollRail, Atmosphere, MotionDirector } from './components/fx';
@@ -123,23 +124,7 @@ export default function App() {
           /* VIEW 3: ON-SITE GATE CHECK-IN SCANNER */
           <SecureCheckInScanner initialCode={checkInTargetCode} />
         ) : activeView === 'admin' ? (
-          <div className="py-16 sm:py-24 bg-[#10140F] min-h-screen">
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-              <span className="text-xs font-bold uppercase tracking-[0.25em] text-[#D8A934]">ROYAL HILLS FEST 2026</span>
-              <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#FFF9ED] mt-3">ระบบจัดการหน้างาน</h1>
-              <p className="text-sm text-[#F3E7C8]/75 mt-4 leading-relaxed">
-                ปิดระบบรับชำระเงินและตรวจสอบสลิปแล้ว เนื่องจากงานนี้เปิดลงทะเบียนโดยไม่มีค่าใช้จ่าย
-                เจ้าหน้าที่สามารถใช้เมนูเช็กอินหน้างานเพื่อสแกน QR Code และตรวจสอบสิทธิ์ได้ตามปกติ
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveView('check-in')}
-                className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-[#D8A934] px-6 py-3 text-sm font-bold text-[#10140F]"
-              >
-                <Ticket className="h-4 w-4" /> เปิดระบบเช็กอิน <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+          <VehicleParkingDashboard />
         ) : (
           /* VIEW 5: MAIN FESTIVAL HOMEPAGE */
           <div>
