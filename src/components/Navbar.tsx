@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveView } from '../types';
-import { Menu, X, Ticket, QrCode, ScanLine, Shield, MapPin, Play, CalendarDays } from 'lucide-react';
+import { Menu, X, Ticket, QrCode, ScanLine, Shield, MapPin, Play, CalendarDays, UserPlus } from 'lucide-react';
 import { ScrollProgressBar } from './fx';
 
 interface NavbarProps {
@@ -88,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleBottomNavClick = (
-    destination: 'my-tickets' | 'location' | 'admin' | 'experience' | 'schedule',
+    destination: 'my-tickets' | 'location' | 'admin' | 'experience' | 'schedule' | 'tickets',
   ) => {
     setMobileMenuOpen(false);
     if (destination === 'location') {
@@ -283,12 +283,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => handleBottomNavClick('admin')}
-            className={`mobile-bottom-nav__item mobile-bottom-nav__item--center ${activeView === 'admin' ? 'is-active' : ''}`}
-            aria-current={activeView === 'admin' ? 'page' : undefined}
+            onClick={() => handleBottomNavClick('tickets')}
+            className={`mobile-bottom-nav__item mobile-bottom-nav__item--center ${activeView === 'tickets' ? 'is-active' : ''}`}
+            aria-current={activeView === 'tickets' ? 'page' : undefined}
           >
-            <span className="mobile-bottom-nav__center-icon"><Shield aria-hidden="true" /></span>
-            <span>จัดการ</span>
+            <span className="mobile-bottom-nav__center-icon"><UserPlus aria-hidden="true" /></span>
+            <span>ลงทะเบียน</span>
           </button>
           <button
             type="button"
