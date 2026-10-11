@@ -472,6 +472,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                               </label>
                               <input
                                 type="text"
+                                readOnly={isLead}
                                 value={table.attendeeNames[seatIdx] || ''}
                                 onChange={(e) => {
                                   const val = e.target.value;
