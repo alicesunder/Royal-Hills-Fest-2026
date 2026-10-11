@@ -333,11 +333,11 @@ async function adminRegisterLegacyVehiclePass(request: Request, body: JsonObject
   const ownerEmail = text(body.ownerEmail, 254).toLowerCase();
   const organization = text(body.organization, 200);
   const affiliation = text(body.affiliation, 200);
-  const vehiclePlate = text(body.vehiclePlate, 40).replace(/\\s+/g, " ").toUpperCase();
+  const vehiclePlate = text(body.vehiclePlate, 40).replace(/\s+/g, " ").toUpperCase();
 
   if (!/^RHF26-[A-Z0-9-]{6,32}$/.test(ticketCode)) throw new ApiError(400, "รหัสบัตรเก่าไม่ถูกต้อง");
   if (ownerName.length < 2 || ownerPhone.length < 6 ||
-      !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(ownerEmail) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) ||
       !organization || !affiliation || vehiclePlate.length < 2) {
     throw new ApiError(400, "กรุณากรอกชื่อ โทรศัพท์ อีเมล หน่วยงาน สังกัด และทะเบียนรถให้ครบถ้วน");
   }
@@ -356,7 +356,7 @@ async function adminRegisterLegacyVehiclePass(request: Request, body: JsonObject
 }
 
 async function createSignedPaymentProofUrl(path: string): Promise<string | null> {
-  const safePath = path.trim().replace(/^\\/+/, "");
+  const safePath = path.trim().replace(/^\/+/, "");
   if (!safePath || safePath.split("/").some((part) => !part || part === "." || part === "..")) return null;
   const cfg = config();
   const encodedPath = safePath.split("/").map((part) => encodeURIComponent(part)).join("/");
@@ -372,7 +372,7 @@ async function createSignedPaymentProofUrl(path: string): Promise<string | null>
   const payload = await responseJson(response) as JsonObject | null;
   const signed = text(payload?.signedURL ?? payload?.signedUrl, 3000);
   if (!signed) return null;
-  if (/^https?:\\/\\//i.test(signed)) return signed;
+  if (/^https?:\/\//i.test(signed)) return signed;
   const relative = signed.startsWith("/") ? signed : "/" + signed;
   return cfg.url + "/storage/v1" + relative;
 }
