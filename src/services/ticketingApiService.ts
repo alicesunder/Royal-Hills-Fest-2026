@@ -235,6 +235,7 @@ export const ticketingApiService = {
       vip_people: number;
       vip_tables: number;
       total_people: number;
+      legacy_missing_vehicle: number;
     };
   }> {
     assertConfigured();
@@ -263,6 +264,7 @@ export const ticketingApiService = {
         vip_people: Number(rawStats.vip_people || 0),
         vip_tables: Number(rawStats.vip_tables || 0),
         total_people: Number(rawStats.total_people || 0),
+        legacy_missing_vehicle: Number(rawStats.legacy_missing_vehicle || 0),
       },
     };
   },
@@ -291,6 +293,87 @@ export const ticketingApiService = {
     const payload = await response.json().catch(() => ({})) as JsonRecord;
     if (!response.ok) {
       throw new Error(typeof payload.error === 'string' ? payload.error : 'บันทึกการจัดสรรที่จอดรถไม่สำเร็จ');
+    }
+    return (payload.data || {}) as JsonRecord;
+  },
+
+  async registerLegacyVehiclePass(
+    accessToken: string,
+    ticketCode: string,
+    profile: {
+      rank: string;
+      name: string;
+      phone: string;
+      email: string;
+      organization: string;
+      affiliation: string;
+      vehiclePlate: string;
+    },
+  ): Promise<JsonRecord> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'register-legacy-vehicle',
+        ticketCode,
+        ownerRank: profile.rank,
+        ownerName: profile.name,
+        ownerPhone: profile.phone,
+        ownerEmail: profile.email,
+        organization: profile.organization,
+        affiliation: profile.affiliation,
+        vehiclePlate: profile.vehiclePlate,
+      }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'เติมข้อมูลป้ายรถสำหรับบัตรเก่าไม่สำเร็จ');
+    }
+    return (payload.data || {}) as JsonRecord;
+  },
+
+  async getPaymentReviewOrders(accessToken: string): Promise<JsonRecord[]> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'admin-payment-reviews' }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'โหลดรายการชำระเงินที่รอตรวจสอบไม่สำเร็จ');
+    }
+    return Array.isArray(payload.data) ? payload.data as JsonRecord[] : [];
+  },
+
+  async reviewPaymentOrder(
+    accessToken: string,
+    orderId: string,
+    reviewAction: 'approve' | 'reject',
+    note: string,
+  ): Promise<JsonRecord> {
+    assertConfigured();
+    const response = await fetch(SUPABASE_URL + '/functions/v1/ticketing-api', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'review-payment-order', orderId, reviewAction, note }),
+    });
+    const payload = await response.json().catch(() => ({})) as JsonRecord;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'บันทึกผลตรวจสอบการชำระเงินไม่สำเร็จ');
     }
     return (payload.data || {}) as JsonRecord;
   },

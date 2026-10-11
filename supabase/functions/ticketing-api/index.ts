@@ -324,6 +324,115 @@ async function adminAssignVehicleParking(request: Request, body: JsonObject) {
   });
 }
 
+async function adminRegisterLegacyVehiclePass(request: Request, body: JsonObject) {
+  const admin = await requireAdmin(request);
+  const ticketCode = text(body.ticketCode, 64).toUpperCase();
+  const ownerRank = text(body.ownerRank, 100);
+  const ownerName = text(body.ownerName, 150);
+  const ownerPhone = text(body.ownerPhone, 40);
+  const ownerEmail = text(body.ownerEmail, 254).toLowerCase();
+  const organization = text(body.organization, 200);
+  const affiliation = text(body.affiliation, 200);
+  const vehiclePlate = text(body.vehiclePlate, 40).replace(/\s+/g, " ").toUpperCase();
+
+  if (!/^RHF26-[A-Z0-9-]{6,32}$/.test(ticketCode)) throw new ApiError(400, "รหัสบัตรเก่าไม่ถูกต้อง");
+  if (ownerName.length < 2 || ownerPhone.length < 6 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) ||
+      !organization || !affiliation || vehiclePlate.length < 2) {
+    throw new ApiError(400, "กรุณากรอกชื่อ โทรศัพท์ อีเมล หน่วยงาน สังกัด และทะเบียนรถให้ครบถ้วน");
+  }
+
+  return await rpc("ticketing_admin_register_legacy_vehicle_pass", {
+    p_staff_id: admin.id,
+    p_ticket_code: ticketCode,
+    p_owner_rank: ownerRank,
+    p_owner_name: ownerName,
+    p_owner_phone: ownerPhone,
+    p_owner_email: ownerEmail,
+    p_organization: organization,
+    p_affiliation: affiliation,
+    p_vehicle_plate: vehiclePlate,
+  });
+}
+
+async function createSignedPaymentProofUrl(path: string): Promise<string | null> {
+  const safePath = path.trim().replace(/^\/+/, "");
+  if (!safePath || safePath.split("/").some((part) => !part || part === "." || part === "..")) return null;
+  const cfg = config();
+  const encodedPath = safePath.split("/").map((part) => encodeURIComponent(part)).join("/");
+  const response = await fetch(cfg.url + "/storage/v1/object/sign/payment-proofs/" + encodedPath, {
+    method: "POST",
+    headers: serverHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ expiresIn: 300 }),
+  });
+  if (!response.ok) {
+    await responseJson(response);
+    return null;
+  }
+  const payload = await responseJson(response) as JsonObject | null;
+  const signed = text(payload?.signedURL ?? payload?.signedUrl, 3000);
+  if (!signed) return null;
+  if (/^https?:\/\//i.test(signed)) return signed;
+  const relative = signed.startsWith("/") ? signed : "/" + signed;
+  return cfg.url + "/storage/v1" + relative;
+}
+
+async function adminListPaymentReviewOrders(request: Request) {
+  await requireAdmin(request);
+  const query = new URLSearchParams();
+  query.set("select", "id,order_number,customer_name,customer_email,amount_total_thb,expires_at,payment_submitted_at,payment_proof_path,created_at,order_items(quantity,unit_price_thb,ticket_types(code,name))");
+  query.set("status", "eq.awaiting_review");
+  query.set("order", "created_at.asc");
+  query.set("limit", "100");
+  const records = await rest("orders?" + query.toString()) as Array<JsonObject>;
+  return await Promise.all(records.map(async (order) => {
+    const proofPath = text(order.payment_proof_path, 500);
+    let proofUrl: string | null = null;
+    if (proofPath) {
+      try { proofUrl = await createSignedPaymentProofUrl(proofPath); } catch { proofUrl = null; }
+    }
+    const rawItems = Array.isArray(order.order_items) ? order.order_items as Array<JsonObject> : [];
+    return {
+      id: text(order.id, 64),
+      order_number: text(order.order_number, 40),
+      customer_name: text(order.customer_name, 150),
+      customer_email: text(order.customer_email, 254),
+      amount_total_thb: Number(order.amount_total_thb || 0),
+      expires_at: text(order.expires_at, 50),
+      payment_submitted_at: text(order.payment_submitted_at, 50),
+      created_at: text(order.created_at, 50),
+      has_proof: Boolean(proofPath),
+      proof_url: proofUrl,
+      items: rawItems.map((item) => {
+        const type = item.ticket_types && typeof item.ticket_types === "object" ? item.ticket_types as JsonObject : {};
+        return {
+          ticket_type: text(type.name, 100) || text(type.code, 32),
+          quantity: Number(item.quantity || 0),
+          unit_price_thb: Number(item.unit_price_thb || 0),
+        };
+      }),
+    };
+  }));
+}
+
+async function adminReviewPaymentOrder(request: Request, body: JsonObject) {
+  const admin = await requireAdmin(request);
+  const orderId = text(body.orderId, 64);
+  const action = text(body.reviewAction, 16);
+  const note = text(body.note, 500);
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(orderId)) throw new ApiError(400, "รหัสคำสั่งซื้อไม่ถูกต้อง");
+  if (action !== "approve" && action !== "reject") throw new ApiError(400, "คำสั่งตรวจสอบไม่ถูกต้อง");
+  if (action === "reject" && note.length < 5) {
+    throw new ApiError(400, "กรุณาระบุเหตุผลก่อนปฏิเสธหลักฐานและคืนโควตา");
+  }
+  return await rpc("ticketing_review_order", {
+    p_order_id: orderId,
+    p_action: action,
+    p_reviewer_id: admin.id,
+    p_note: note || null,
+  });
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (request.method !== "POST") {
@@ -364,6 +473,15 @@ Deno.serve(async (request: Request) => {
         break;
       case "assign-parking":
         result = await adminAssignVehicleParking(request, body);
+        break;
+      case "register-legacy-vehicle":
+        result = await adminRegisterLegacyVehiclePass(request, body);
+        break;
+      case "admin-payment-reviews":
+        result = await adminListPaymentReviewOrders(request);
+        break;
+      case "review-payment-order":
+        result = await adminReviewPaymentOrder(request, body);
         break;
       default:
         throw new ApiError(400, "ไม่รู้จักคำสั่งที่ร้องขอ");
