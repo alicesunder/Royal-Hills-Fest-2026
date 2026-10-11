@@ -29,8 +29,8 @@ declare
   v_idx integer;
 begin
   if p_order_number is null
-     or length(p_order_number) < 6
-     or length(p_order_number) > 40
+     or pg_catalog.length(p_order_number) < 6
+     or pg_catalog.length(p_order_number) > 40
      or p_lookup_token_hash is null
      or p_lookup_token_hash !~ '^[a-f0-9]{64}$' then
     raise exception 'Invalid free registration lookup' using errcode = '22023';
@@ -70,7 +70,7 @@ begin
     raise exception 'Only zero-value orders can use free registration' using errcode = '22023';
   end if;
 
-  if v_order.expires_at <= pg_catalog.now() then
+  if v_order.expires_at is null or v_order.expires_at <= pg_catalog.now() then
     raise exception 'Registration reservation has expired; please create a new registration' using errcode = '22023';
   end if;
 
